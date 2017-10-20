@@ -15,7 +15,6 @@
 package bigquery
 
 import (
-	"reflect"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -24,6 +23,7 @@ import (
 
 func defaultCopyJob() *bq.Job {
 	return &bq.Job{
+		JobReference: &bq.JobReference{JobId: "RANDOM", ProjectId: "client-project-id"},
 		Configuration: &bq.JobConfiguration{
 			Copy: &bq.JobConfigurationTableCopy{
 				DestinationTable: &bq.TableReference{
@@ -44,11 +44,12 @@ func defaultCopyJob() *bq.Job {
 }
 
 func TestCopy(t *testing.T) {
+	defer fixRandomJobID("RANDOM")()
 	testCases := []struct {
-		dst     *Table
-		src     Tables
-		options []Option
-		want    *bq.Job
+		dst    *Table
+		srcs   []*Table
+		config CopyConfig
+		want   *bq.Job
 	}{
 		{
 			dst: &Table{
@@ -56,7 +57,7 @@ func TestCopy(t *testing.T) {
 				DatasetID: "d-dataset-id",
 				TableID:   "d-table-id",
 			},
-			src: Tables{
+			srcs: []*Table{
 				{
 					ProjectID: "s-project-id",
 					DatasetID: "s-dataset-id",
@@ -71,14 +72,17 @@ func TestCopy(t *testing.T) {
 				DatasetID: "d-dataset-id",
 				TableID:   "d-table-id",
 			},
-			src: Tables{
+			srcs: []*Table{
 				{
 					ProjectID: "s-project-id",
 					DatasetID: "s-dataset-id",
 					TableID:   "s-table-id",
 				},
 			},
-			options: []Option{CreateNever, WriteTruncate},
+			config: CopyConfig{
+				CreateDisposition: CreateNever,
+				WriteDisposition:  WriteTruncate,
+			},
 			want: func() *bq.Job {
 				j := defaultCopyJob()
 				j.Configuration.Copy.CreateDisposition = "CREATE_NEVER"
@@ -86,19 +90,43 @@ func TestCopy(t *testing.T) {
 				return j
 			}(),
 		},
+		{
+			dst: &Table{
+				ProjectID: "d-project-id",
+				DatasetID: "d-dataset-id",
+				TableID:   "d-table-id",
+			},
+			srcs: []*Table{
+				{
+					ProjectID: "s-project-id",
+					DatasetID: "s-dataset-id",
+					TableID:   "s-table-id",
+				},
+			},
+			config: CopyConfig{JobID: "job-id"},
+			want: func() *bq.Job {
+				j := defaultCopyJob()
+				j.JobReference.JobId = "job-id"
+				return j
+			}(),
+		},
 	}
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		s := &testService{}
 		c := &Client{
-			service: s,
+			service:   s,
+			projectID: "client-project-id",
 		}
-		if _, err := c.Copy(context.Background(), tc.dst, tc.src, tc.options...); err != nil {
-			t.Errorf("err calling cp: %v", err)
+		tc.dst.c = c
+		copier := tc.dst.CopierFrom(tc.srcs...)
+		tc.config.Srcs = tc.srcs
+		tc.config.Dst = tc.dst
+		copier.CopyConfig = tc.config
+		if _, err := copier.Run(context.Background()); err != nil {
+			t.Errorf("#%d: err calling Run: %v", i, err)
 			continue
 		}
-		if !reflect.DeepEqual(s.Job, tc.want) {
-			t.Errorf("copying: got:\n%v\nwant:\n%v", s.Job, tc.want)
-		}
+		checkJob(t, i, s.Job, tc.want)
 	}
 }

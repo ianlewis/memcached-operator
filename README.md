@@ -12,7 +12,7 @@ memcached-operator is still under active development and has not been extensivel
 
 ## Prerequisites
 
-* Version >= 1.6 of Kubernetes.
+* Version >= 1.8 of Kubernetes.
 
 ## Installation
 
@@ -36,7 +36,7 @@ Check out memcached-operator to your `GOPATH`
 memcached-operator can be built using the normal Go build tools.
 
 ```
-$ go build github.com/IanLewis/memcached-operator/cmd/memcached-operator
+$ go build github.com/ianlewis/memcached-operator/cmd/memcached-operator
 ```
 
 ### Running Tests

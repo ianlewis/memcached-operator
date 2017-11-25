@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/IanLewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
+	v1alpha1 "github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"

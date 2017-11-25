@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 package externalversions
 
 import (
-	versioned "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned"
-	ianlewis "github.com/IanLewis/memcached-operator/pkg/client/informers/externalversions/ianlewis"
-	internalinterfaces "github.com/IanLewis/memcached-operator/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
+	ianlewis "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis"
+	internalinterfaces "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/internalinterfaces"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"

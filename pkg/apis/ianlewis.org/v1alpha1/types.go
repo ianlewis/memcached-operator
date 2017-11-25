@@ -16,6 +16,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // +genclient
@@ -27,14 +28,25 @@ type MemcachedProxy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MemcachedProxySpec   `json:"spec,omitempty"`
-	Status MemcachedProxyStatus `json:"status,omitempty"`
+	Spec   MemcachedProxySpec   `json:"spec"`
+	Status MemcachedProxyStatus `json:"status"`
 }
 
 // MemcachedProxySpec is the specification of the desired state of a MemcachedProxy.
 type MemcachedProxySpec struct {
-	ServiceName string `json:"serviceName,omitempty"`
-	ServicePort string `json:"servicePort,omitempty"`
+	Rules []RuleSpec `json:"rules"`
+}
+
+// RuleSpec defines a routing rule to either a list of services or child rules
+type RuleSpec struct {
+	Type     string       `json:"type"`
+	Service  *ServiceSpec `json:"service,omitempty"`
+	Children []RuleSpec   `json:"children,omitempty"`
+}
+
+type ServiceSpec struct {
+	Name string             `json:"name"`
+	Port intstr.IntOrString `json:"port"`
 }
 
 // MemcachedProxyStatus is the most recently observed status of the cluster
@@ -47,8 +59,6 @@ type MemcachedProxyStatus struct {
 	// We assume that end users will not update the status object and especially this field.
 	ObservedSpecHash string `json:"observedSpecHash,omitempty"`
 	Replicas         int32  `json:"replicas,omitempty"`
-	ServiceName      string `json:"serviceName,omitempty"`
-	ServiceIP        string `json:"serviceIP,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

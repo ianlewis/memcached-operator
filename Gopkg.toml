@@ -20,5 +20,5 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
   revision = "9e661e9308f078838e266cca1c673922088c0ea4"
 
 [[constraint]]
-  branch = "master"
-  name = "golang.org/x/sync"
+  name = "github.com/ianlewis/controllerutil"
+  revision = "69e9b6a6784f40c39b00f62b9178cde17d34fefc"

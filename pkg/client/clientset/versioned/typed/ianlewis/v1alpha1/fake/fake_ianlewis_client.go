@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 package fake
 
 import (
-	v1alpha1 "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1"
+	v1alpha1 "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

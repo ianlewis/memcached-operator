@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ package versioned
 
 import (
 	glog "github.com/golang/glog"
-	ianlewisv1alpha1 "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1"
+	ianlewisv1alpha1 "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/IanLewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
-	"github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
+	"github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/scheme"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )

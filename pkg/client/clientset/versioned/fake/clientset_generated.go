@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 package fake
 
 import (
-	clientset "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned"
-	ianlewisv1alpha1 "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1"
-	fakeianlewisv1alpha1 "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1/fake"
+	clientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
+	ianlewisv1alpha1 "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1"
+	fakeianlewisv1alpha1 "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/typed/ianlewis/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

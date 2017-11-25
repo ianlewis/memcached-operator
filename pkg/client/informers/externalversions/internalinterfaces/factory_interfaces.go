@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package internalinterfaces
 
 import (
-	versioned "github.com/IanLewis/memcached-operator/pkg/client/clientset/versioned"
+	versioned "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
 	time "time"

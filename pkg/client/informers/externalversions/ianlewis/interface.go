@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2017 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package ianlewis
 
 import (
-	v1alpha1 "github.com/IanLewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
-	internalinterfaces "github.com/IanLewis/memcached-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
+	internalinterfaces "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

@@ -38,8 +38,8 @@ import (
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorginformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
-	"github.com/ianlewis/memcached-operator/pkg/controller/memcachedproxyservice"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxyconfigmap"
+	"github.com/ianlewis/memcached-operator/pkg/controller/proxyservice"
 )
 
 func main() {
@@ -81,7 +81,7 @@ func main() {
 	m := controllerutil.NewControllerManager("memcached-operator", client)
 
 	m.Register("memcached-proxy-service", func(ctx *controller.Context) controller.Interface {
-		return memcachedproxyservice.New(
+		return proxyservice.New(
 			"memcached-proxy-service",
 			ctx.Client,
 			ianlewisorgClient,

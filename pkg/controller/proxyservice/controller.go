@@ -1,4 +1,4 @@
-package memcachedproxyservice
+package proxyservice
 
 import (
 	"context"

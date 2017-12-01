@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -93,7 +92,7 @@ func New(
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := KeyFunc(obj)
 	if err != nil {
-		runtime.HandleError(err)
+		c.l.Error.Printf("%v", err)
 		return
 	}
 	c.queue.Add(key)
@@ -121,7 +120,8 @@ func (c *Controller) worker() {
 		}
 
 		if err := c.processWorkItem(obj); err != nil {
-			runtime.HandleError(err)
+			c.l.Error.Printf("%v", err)
+			c.queue.AddRateLimited(obj)
 		}
 	}
 }
@@ -181,8 +181,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Get the service for this proxy
 	sName := controller.GetProxyServiceName(p)
-	// TODO: compare service to desired service and self-heal
-	_, err = c.sLister.Services(ns).Get(sName)
+	s, err := c.sLister.Services(ns).Get(sName)
 	if err != nil {
 		// if the resource doesn't exist we need to create it.
 		if errors.IsNotFound(err) {
@@ -236,6 +235,9 @@ func (c *Controller) syncHandler(key string) error {
 
 		return err
 	}
+
+	// TODO: compare service to desired service and self-heal
+	c.l.Info.V(4).Printf("found existing service %q", s.Namespace+"/"+s.Name)
 
 	return nil
 }

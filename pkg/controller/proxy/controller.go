@@ -1,40 +1,34 @@
-package proxyservice
+package proxy
 
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
-	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/ianlewis/controllerutil/logging"
 
+	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorglisters "github.com/ianlewis/memcached-operator/pkg/client/listers/ianlewis/v1alpha1"
-	"github.com/ianlewis/memcached-operator/pkg/controller"
 )
 
 var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
-
-	memcachedPort = int32(11211)
 )
 
-// Controller represents a memcached proxy service controller which watches MemcachedProxy objects and creates associated Service objects.
+// Controller represents a memcached proxy controller that sets default values and updates the object status.
 type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
 	pLister ianlewisorglisters.MemcachedProxyLister
-	sLister corev1listers.ServiceLister
 
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
@@ -51,12 +45,12 @@ type Controller struct {
 	l *logging.Logger
 }
 
+// New creates a new memcached proxy configmap controller
 func New(
 	name string,
 	client clientset.Interface,
 	ianlewisorgClient ianlewisorgclientset.Interface,
 	proxyInformer cache.SharedIndexInformer,
-	serviceInformer cache.SharedIndexInformer,
 	recorder record.EventRecorder,
 	logger *logging.Logger,
 	workers int,
@@ -66,7 +60,6 @@ func New(
 		ianlewisorgClient: ianlewisorgClient,
 
 		pLister: ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
-		sLister: corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
 
 		recorder: recorder,
 
@@ -83,8 +76,6 @@ func New(
 		},
 		DeleteFunc: c.enqueue,
 	})
-
-	// TODO: watch services for changes and self-heal
 
 	return c
 }
@@ -173,83 +164,38 @@ func (c *Controller) syncHandler(key string) error {
 		// The resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
+			// FIXME
 			return fmt.Errorf("memcached proxy '%s' in work queue no longer exists", key)
 		}
 
 		return err
 	}
 
-	// Check if the current version has been observed by the proxy controller
-	hash, err := p.Spec.GetHash()
-	if err != nil {
-		return fmt.Errorf("failed to get hash for %q: %v", key, err)
+	pCopy := p.DeepCopy()
+	pCopy.ApplyDefaults()
+	if err := c.updateStatus(pCopy); err != nil {
+		return fmt.Errorf("failed to update status for %q: %v", key, err)
 	}
-	if hash != p.Status.ObservedSpecHash {
-		// Requeue
-		c.l.Info.V(5).Printf("memcached proxy %q status not updated. requeueing", key)
-		c.queue.AddRateLimited(key)
+	if reflect.DeepEqual(p.Spec, pCopy.Spec) && reflect.DeepEqual(p.Status, pCopy.Status) {
+		// No update needed.
+		c.l.Info.V(5).Printf("no update needed for %q skipping", key)
 		return nil
 	}
 
-	// Get the service for this proxy
-	sName := controller.GetProxyServiceName(p)
-	s, err := c.sLister.Services(ns).Get(sName)
+	c.l.Info.V(4).Printf("updating status for %q", key)
+	pCopy, err = c.ianlewisorgClient.IanlewisV1alpha1().MemcachedProxies(pCopy.Namespace).Update(pCopy)
 	if err != nil {
-		// if the resource doesn't exist we need to create it.
-		if errors.IsNotFound(err) {
-			c.l.Info.V(4).Printf("creating service %q", ns+"/"+sName)
-
-			// Create the service
-			dName := controller.GetProxyDeploymentName(p)
-			s := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:            sName,
-					Namespace:       ns,
-					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: map[string]string{
-						// TODO: Use a better selector.
-						"proxy-name": dName,
-					},
-					Type: "ClusterIP",
-					Ports: []corev1.ServicePort{
-						corev1.ServicePort{
-							Name:     "memcached",
-							Protocol: "TCP",
-							Port:     memcachedPort,
-							TargetPort: intstr.IntOrString{
-								IntVal: memcachedPort,
-							},
-						},
-					},
-				},
-			}
-
-			result, err := c.client.CoreV1().Services(ns).Create(s)
-			if err != nil {
-				msg := fmt.Sprintf("failed to create service %q: %v", ns+"/"+sName, err)
-				logging.PrintMulti(c.l.Error, map[logging.Level]string{
-					4: msg,
-					9: fmt.Sprintf("failed to create service %q: %v: %#v", ns+"/"+sName, err, s),
-				})
-				c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyServiceCreateReason, msg)
-				return err
-			}
-
-			msg := fmt.Sprintf("service %q created", ns+"/"+sName)
-			logging.PrintMulti(c.l.Info, map[logging.Level]string{
-				4: msg,
-				9: fmt.Sprintf("service %q created: %#v", ns+"/"+sName, result),
-			})
-			c.recorder.Event(p, corev1.EventTypeNormal, ProxyServiceCreateReason, msg)
-		}
-
-		return err
+		return fmt.Errorf("failed to update %q: %v", key, err)
 	}
 
-	// TODO: compare service to desired service and self-heal
-	c.l.Info.V(4).Printf("found existing service %q", s.Namespace+"/"+s.Name)
+	return nil
+}
 
+func (c *Controller) updateStatus(p *v1alpha1.MemcachedProxy) error {
+	hash, err := p.Spec.GetHash()
+	if err != nil {
+		return fmt.Errorf("failed to hash spec for %q: %v", p.Namespace+"/"+p.Name, err)
+	}
+	p.Status.ObservedSpecHash = hash
 	return nil
 }

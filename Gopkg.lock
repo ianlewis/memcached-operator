@@ -148,7 +148,7 @@
 [[projects]]
   name = "github.com/ianlewis/controllerutil"
   packages = [".","controller","informers","logging"]
-  revision = "bb10d4b15819ee0a7aa09ab288fe4b4bcc1cdb7d"
+  revision = "227243e4489e9d1d7efb0e7d0db2d62cde31698b"
 
 [[projects]]
   name = "github.com/imdario/mergo"
@@ -173,6 +173,12 @@
   name = "github.com/mailru/easyjson"
   packages = ["buffer","jlexer","jwriter"]
   revision = "3fd5e860b68f3cc81671ece2e226c78a6bbf54d3"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mitchellh/hashstructure"
+  packages = ["."]
+  revision = "2bca23e0e452137f789efbc8610126fd8b94f73b"
 
 [[projects]]
   branch = "master"
@@ -284,6 +290,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "898190da146b6e1c430e3649df2b102432b2241cb928235dbe315f4f56886b08"
+  inputs-digest = "2f067e509d0c5fa98929524b07b2d39dad2eb39b4efea363b4b7bab8b1b05d9e"
   solver-name = "gps-cdcl"
   solver-version = 1

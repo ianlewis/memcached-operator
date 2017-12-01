@@ -15,8 +15,17 @@
 package v1alpha1
 
 import (
+	"strconv"
+
+	"github.com/mitchellh/hashstructure"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+)
+
+const (
+	ReplicatedRuleType = "replicated"
+	ShardedRuleType    = "sharded"
 )
 
 // +genclient
@@ -32,9 +41,25 @@ type MemcachedProxy struct {
 	Status MemcachedProxyStatus `json:"status"`
 }
 
+func (p *MemcachedProxy) ApplyDefaults() {
+	for _, r := range p.Spec.Rules {
+		r.ApplyDefaults(p)
+	}
+}
+
 // MemcachedProxySpec is the specification of the desired state of a MemcachedProxy.
 type MemcachedProxySpec struct {
 	Rules []RuleSpec `json:"rules"`
+}
+
+// UpdateHash updates the
+func (s *MemcachedProxySpec) GetHash() (string, error) {
+	hash, err := hashstructure.Hash(s, nil)
+	if err != nil {
+		return "", err
+	}
+	// Return hex format.
+	return strconv.FormatUint(hash, 16), nil
 }
 
 // RuleSpec defines a routing rule to either a list of services or child rules
@@ -44,9 +69,28 @@ type RuleSpec struct {
 	Children []RuleSpec   `json:"children,omitempty"`
 }
 
+func (r *RuleSpec) ApplyDefaults(p *MemcachedProxy) {
+	if r.Type == "" {
+		r.Type = ShardedRuleType
+	}
+	if r.Service != nil {
+		r.Service.ApplyDefaults(p)
+	}
+	for _, r := range r.Children {
+		r.ApplyDefaults(p)
+	}
+}
+
 type ServiceSpec struct {
-	Name string             `json:"name"`
-	Port intstr.IntOrString `json:"port"`
+	Name      string             `json:"name"`
+	Namespace string             `json:"namespace"`
+	Port      intstr.IntOrString `json:"port"`
+}
+
+func (s *ServiceSpec) ApplyDefaults(p *MemcachedProxy) {
+	if s.Namespace == "" {
+		s.Namespace = p.Namespace
+	}
 }
 
 // MemcachedProxyStatus is the most recently observed status of the cluster
@@ -54,11 +98,13 @@ type MemcachedProxyStatus struct {
 	// The generation observed by the MemcachedProxy controller. Not used currently as generation is not updated for CRDs.
 	// Proper support for CRDs is being worked on.
 	// See: https://github.com/kubernetes/community/pull/913
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// TODO: implement
+	// ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// This is a workaround for the fact that Generation and sub-resources are not fully supported for CRDs yet.
 	// We assume that end users will not update the status object and especially this field.
 	ObservedSpecHash string `json:"observedSpecHash,omitempty"`
-	Replicas         int32  `json:"replicas,omitempty"`
+	// TODO: implement
+	// Replicas int32 `json:"replicas,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

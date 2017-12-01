@@ -26,8 +26,6 @@ import (
 
 var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
-
-	memcachedPort = int32(11211)
 )
 
 // Cotroller represents a memcached proxy config map controller that
@@ -40,6 +38,7 @@ type Controller struct {
 	pLister   ianlewisorglisters.MemcachedProxyLister
 	cmLister  corev1listers.ConfigMapLister
 	sLister   corev1listers.ServiceLister
+	epLister  corev1listers.EndpointsLister
 	podLister corev1listers.PodLister
 
 	// recorder is an event recorder for recording Event resources to the
@@ -65,6 +64,7 @@ func New(
 	proxyInformer cache.SharedIndexInformer,
 	configMapInformer cache.SharedIndexInformer,
 	serviceInformer cache.SharedIndexInformer,
+	endpointsInformer cache.SharedIndexInformer,
 	podInformer cache.SharedIndexInformer,
 	recorder record.EventRecorder,
 	logger *logging.Logger,
@@ -77,6 +77,7 @@ func New(
 		pLister:   ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
 		cmLister:  corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
 		sLister:   corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
+		epLister:  corev1listers.NewEndpointsLister(serviceInformer.GetIndexer()),
 		podLister: corev1listers.NewPodLister(podInformer.GetIndexer()),
 
 		recorder: recorder,
@@ -171,10 +172,13 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 // configMapForProxy gets the desired configmap object based on the given memcached proxy object.
 func (c *Controller) newConfigMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.ConfigMap, error) {
 	// Render config file
-	config := c.configForProxy(p)
+	config, err := c.configForProxy(p)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create mcrouter config: %v", err)
+	}
 	configJSON, err := json.Marshal(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create render config.json: %v", err)
 	}
 
 	cm := &corev1.ConfigMap{
@@ -205,14 +209,14 @@ func (c *Controller) getConfigMapsForProxy(p *v1alpha1.MemcachedProxy) ([]*corev
 			result = append(result, cm)
 		}
 	}
-	return result, err
+	return result, nil
 }
 
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
-	c.l.Info.V(4).Printf("Started syncing %q (%v)", key, startTime)
+	c.l.Info.V(4).Printf("started syncing %q (%v)", key, startTime)
 	defer func() {
-		c.l.Info.V(4).Printf("Finished syncing %q (%v)", key, time.Now().Sub(startTime))
+		c.l.Info.V(4).Printf("finished syncing %q (%v)", key, time.Now().Sub(startTime))
 	}()
 
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
@@ -232,10 +236,21 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// TODO: compare configmap to desired configmap and self-heal
+	// Check if the current version has been observed by the proxy controller
+	hash, err := p.Spec.GetHash()
+	if err != nil {
+		return fmt.Errorf("failed to get hash for %q: %v", key, err)
+	}
+	if hash != p.Status.ObservedSpecHash {
+		// Requeue
+		c.l.Info.V(5).Printf("memcached proxy %q status not updated. requeueing", key)
+		c.queue.AddRateLimited(key)
+		return nil
+	}
+
 	cmList, err := c.getConfigMapsForProxy(p)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get configmaps for %q: %v", key, err)
 	}
 	if len(cmList) == 0 {
 		c.l.Info.V(4).Printf("Creating configmap for %q", key)
@@ -267,6 +282,7 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
+	// Existing configmaps were found. Get one configmap and delete any others.
 	var cm *corev1.ConfigMap
 	if len(cmList) == 1 {
 		cm = cmList[0]

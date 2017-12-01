@@ -38,6 +38,7 @@ import (
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorginformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
+	"github.com/ianlewis/memcached-operator/pkg/controller/proxy"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxyconfigmap"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxyservice"
 )
@@ -79,6 +80,28 @@ func main() {
 	}()
 
 	m := controllerutil.NewControllerManager("memcached-operator", client)
+
+	m.Register("memcached-proxy", func(ctx *controller.Context) controller.Interface {
+		return proxy.New(
+			"memcached-proxy",
+			ctx.Client,
+			ianlewisorgClient,
+			ctx.SharedInformers.InformerFor(
+				&v1alpha1.MemcachedProxy{},
+				func() cache.SharedIndexInformer {
+					return ianlewisorginformers.NewMemcachedProxyInformer(
+						ianlewisorgClient,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.Recorder,
+			ctx.Logger,
+			*serviceWorkers,
+		)
+	})
 
 	m.Register("memcached-proxy-service", func(ctx *controller.Context) controller.Interface {
 		return proxyservice.New(
@@ -144,6 +167,17 @@ func main() {
 				&corev1.Service{},
 				func() cache.SharedIndexInformer {
 					return corev1informers.NewServiceInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&corev1.Endpoints{},
+				func() cache.SharedIndexInformer {
+					return corev1informers.NewEndpointsInformer(
 						ctx.Client,
 						*namespace,
 						*defaultResync,

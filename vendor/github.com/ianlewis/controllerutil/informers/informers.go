@@ -68,7 +68,7 @@ func (s *sharedInformers) InformerFor(obj runtime.Object, f NewInformerFunc) cac
 	return informer
 }
 
-// WaitForCacheSync waits for all started informers' cache were synced.
+// WaitForCacheSync waits for all informers' cache to sync.
 func (s *sharedInformers) WaitForCacheSync(ctx context.Context) error {
 	informers := func() map[reflect.Type]cache.SharedIndexInformer {
 		s.lock.Lock()
@@ -76,9 +76,7 @@ func (s *sharedInformers) WaitForCacheSync(ctx context.Context) error {
 
 		informers := map[reflect.Type]cache.SharedIndexInformer{}
 		for informerType, informer := range s.informers {
-			if s.startedInformers[informerType] {
-				informers[informerType] = informer
-			}
+			informers[informerType] = informer
 		}
 		return informers
 	}()

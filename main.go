@@ -39,6 +39,7 @@ import (
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorginformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller/memcachedproxyservice"
+	"github.com/ianlewis/memcached-operator/pkg/controller/proxyconfigmap"
 )
 
 func main() {
@@ -47,6 +48,7 @@ func main() {
 	namespace := flag.String("namespace", metav1.NamespaceAll, "The namespace to watch. Defaults to all namespaces.")
 	defaultResync := flag.Duration("default-resync", 12*time.Hour, "The default resync interval. Default is 12 hours.")
 	serviceWorkers := flag.Int("concurrent-service-syncs", 5, "The number of memcached proxy services that are allowed to sync concurrently. A larger number is more responsive, but more CPU and network load. Default is 5.")
+	configMapWorkers := flag.Int("concurrent-configmap-syncs", 5, "The number of memcached proxy configmaps that are allowed to sync concurrently. A larger number is more responsive, but more CPU and network load. Default is 5.")
 
 	flag.Parse()
 
@@ -108,6 +110,61 @@ func main() {
 			ctx.Recorder,
 			ctx.Logger,
 			*serviceWorkers,
+		)
+	})
+
+	m.Register("memcached-proxy-configmap", func(ctx *controller.Context) controller.Interface {
+		return proxyconfigmap.New(
+			"memcached-proxy-configmap",
+			ctx.Client,
+			ianlewisorgClient,
+			ctx.SharedInformers.InformerFor(
+				&v1alpha1.MemcachedProxy{},
+				func() cache.SharedIndexInformer {
+					return ianlewisorginformers.NewMemcachedProxyInformer(
+						ianlewisorgClient,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&corev1.ConfigMap{},
+				func() cache.SharedIndexInformer {
+					return corev1informers.NewConfigMapInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&corev1.Service{},
+				func() cache.SharedIndexInformer {
+					return corev1informers.NewServiceInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&corev1.Pod{},
+				func() cache.SharedIndexInformer {
+					return corev1informers.NewPodInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.Recorder,
+			ctx.Logger,
+			*configMapWorkers,
 		)
 	})
 

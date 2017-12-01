@@ -1,15 +1,15 @@
-package memcachedproxyservice
+package proxyconfigmap
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/labels"
 	clientset "k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -18,6 +18,7 @@ import (
 
 	"github.com/ianlewis/controllerutil/logging"
 
+	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorglisters "github.com/ianlewis/memcached-operator/pkg/client/listers/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller"
@@ -29,13 +30,17 @@ var (
 	memcachedPort = int32(11211)
 )
 
-// Controller represents a memcached proxy service controller which watches MemcachedProxy objects and creates associated Service objects.
+// Cotroller represents a memcached proxy config map controller that
+// watches MemcachedProxy objects and creates a ConfigMap used to
+// configure mcrouter.
 type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
-	pLister ianlewisorglisters.MemcachedProxyLister
-	sLister corev1listers.ServiceLister
+	pLister   ianlewisorglisters.MemcachedProxyLister
+	cmLister  corev1listers.ConfigMapLister
+	sLister   corev1listers.ServiceLister
+	podLister corev1listers.PodLister
 
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
@@ -52,12 +57,15 @@ type Controller struct {
 	l *logging.Logger
 }
 
+// New creates a new memcached proxy configmap controller
 func New(
 	name string,
 	client clientset.Interface,
 	ianlewisorgClient ianlewisorgclientset.Interface,
 	proxyInformer cache.SharedIndexInformer,
+	configMapInformer cache.SharedIndexInformer,
 	serviceInformer cache.SharedIndexInformer,
+	podInformer cache.SharedIndexInformer,
 	recorder record.EventRecorder,
 	logger *logging.Logger,
 	workers int,
@@ -66,8 +74,10 @@ func New(
 		client:            client,
 		ianlewisorgClient: ianlewisorgClient,
 
-		pLister: ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
-		sLister: corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
+		pLister:   ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
+		cmLister:  corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
+		sLister:   corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
+		podLister: corev1listers.NewPodLister(podInformer.GetIndexer()),
 
 		recorder: recorder,
 
@@ -85,7 +95,9 @@ func New(
 		DeleteFunc: c.enqueue,
 	})
 
-	// TODO: watch services for changes and self-heal
+	// TODO: Watch configmap for changes and self-heal
+	// TODO: Watch services for changes
+	// TODO: Watch pods for changes
 
 	return c
 }
@@ -93,7 +105,7 @@ func New(
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := KeyFunc(obj)
 	if err != nil {
-		runtime.HandleError(err)
+		c.l.Error.Printf("%v", err)
 		return
 	}
 	c.queue.Add(key)
@@ -121,7 +133,8 @@ func (c *Controller) worker() {
 		}
 
 		if err := c.processWorkItem(obj); err != nil {
-			runtime.HandleError(err)
+			c.l.Error.Printf("%v", err)
+			c.queue.AddRateLimited(obj)
 		}
 	}
 }
@@ -155,6 +168,46 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 	return nil
 }
 
+// configMapForProxy gets the desired configmap object based on the given memcached proxy object.
+func (c *Controller) newConfigMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.ConfigMap, error) {
+	// Render config file
+	config := c.configForProxy(p)
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
+	}
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "",
+			GenerateName:    fmt.Sprintf("%s-config-", p.Name),
+			Namespace:       p.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+		},
+		Data: map[string]string{
+			"config.json": string(configJSON),
+		},
+	}
+
+	return cm, nil
+}
+
+// getConfigMapsForProxy returns all configmaps owned by the proxy
+func (c *Controller) getConfigMapsForProxy(p *v1alpha1.MemcachedProxy) ([]*corev1.ConfigMap, error) {
+	cmList, err := c.cmLister.ConfigMaps(p.Namespace).List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*corev1.ConfigMap
+	for _, cm := range cmList {
+		if metav1.IsControlledBy(cm, p) {
+			result = append(result, cm)
+		}
+	}
+	return result, err
+}
+
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
 	c.l.Info.V(4).Printf("Started syncing %q (%v)", key, startTime)
@@ -179,63 +232,63 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// Get the service for this proxy
-	sName := controller.GetProxyServiceName(p)
-	// TODO: compare service to desired service and self-heal
-	_, err = c.sLister.Services(ns).Get(sName)
+	// TODO: compare configmap to desired configmap and self-heal
+	cmList, err := c.getConfigMapsForProxy(p)
 	if err != nil {
-		// if the resource doesn't exist we need to create it.
-		if errors.IsNotFound(err) {
-			c.l.Info.V(4).Printf("Creating service %q", ns+"/"+sName)
-
-			// Create the service
-			dName := controller.GetProxyDeploymentName(p)
-			s := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:            sName,
-					Namespace:       ns,
-					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: map[string]string{
-						// TODO: Use a better selector.
-						"proxy-name": dName,
-					},
-					Type: "ClusterIP",
-					Ports: []corev1.ServicePort{
-						corev1.ServicePort{
-							Name:     "memcached",
-							Protocol: "TCP",
-							Port:     memcachedPort,
-							TargetPort: intstr.IntOrString{
-								IntVal: memcachedPort,
-							},
-						},
-					},
-				},
-			}
-
-			result, err := c.client.CoreV1().Services(ns).Create(s)
-			if err != nil {
-				msg := fmt.Sprintf("failed to create service %q: %v", ns+"/"+sName, err)
-				logging.PrintMulti(c.l.Error, map[logging.Level]string{
-					4: msg,
-					9: fmt.Sprintf("failed to create service %q: %v: %#v", ns+"/"+sName, err, s),
-				})
-				c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyServiceCreateReason, msg)
-				return err
-			}
-
-			msg := fmt.Sprintf("service %q created", ns+"/"+sName)
-			logging.PrintMulti(c.l.Info, map[logging.Level]string{
-				4: msg,
-				9: fmt.Sprintf("service %q created: %#v", ns+"/"+sName, result),
-			})
-			c.recorder.Event(p, corev1.EventTypeNormal, ProxyServiceCreateReason, msg)
-		}
-
 		return err
 	}
+	if len(cmList) == 0 {
+		c.l.Info.V(4).Printf("Creating configmap for %q", key)
+
+		// Create the ConfigMap based on the proxy configuration.
+		cm, err := c.newConfigMapForProxy(p)
+		if err != nil {
+			return err
+		}
+
+		result, err := c.client.CoreV1().ConfigMaps(ns).Create(cm)
+		if err != nil {
+			msg := fmt.Sprintf("failed to create configmap for %q: %v", key, err)
+			logging.PrintMulti(c.l.Error, map[logging.Level]string{
+				4: msg,
+				9: fmt.Sprintf("failed to create configmap for %q: %v: %#v", key, err, cm),
+			})
+			c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyConfigMapCreateReason, msg)
+			return err
+		}
+
+		msg := fmt.Sprintf("configmap %q created", result.Namespace+"/"+result.Name)
+		logging.PrintMulti(c.l.Info, map[logging.Level]string{
+			4: msg,
+			9: fmt.Sprintf("configmap %q created: %#v", result.Namespace+"/"+result.Name, result),
+		})
+		c.recorder.Event(p, corev1.EventTypeNormal, ProxyConfigMapCreateReason, msg)
+
+		return nil
+	}
+
+	var cm *corev1.ConfigMap
+	if len(cmList) == 1 {
+		cm = cmList[0]
+	} else {
+		// Multiple configmaps were found so clean up unnecessary configmaps
+		c.l.Info.V(4).Printf("found multiple configmaps for %q", key)
+		toDelete := cmList[1:]
+		for _, m := range toDelete {
+			err := c.client.CoreV1().ConfigMaps(ns).Delete(m.Name, nil)
+			if err != nil {
+				return err
+			}
+			msg := fmt.Sprintf("deleting configmap %q", m.Namespace+"/"+m.Name)
+			c.l.Info.V(4).Print(msg)
+			c.recorder.Event(p, corev1.EventTypeWarning, DeleteConfigMapReason, msg)
+		}
+
+		cm = cmList[0]
+	}
+
+	// TODO: Update configmap if changed
+	c.l.Info.V(4).Printf("found existing configmap %q", cm.Namespace+"/"+cm.Name)
 
 	return nil
 }

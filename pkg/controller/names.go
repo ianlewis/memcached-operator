@@ -24,12 +24,18 @@ func MakeName(prefix string, hashValues []string) string {
 
 // GetProxyServiceName returns the name of the proxy service for the given proxy
 func GetProxyServiceName(p *v1alpha1.MemcachedProxy) string {
-	// TODO: Use hash of proxy name and collision count
+	// TODO: Use collision count
 	return MakeName(fmt.Sprintf("%s-memcached", p.Name), []string{p.Name})
+}
+
+// GetProxyConfigMapName returns the name of the proxy service for the given proxy
+func GetProxyConfigMapName(p *v1alpha1.MemcachedProxy) string {
+	// TODO: Use collision count
+	return MakeName(fmt.Sprintf("%s-config", p.Name), []string{p.Name})
 }
 
 // GetProxyDeploymentName returns the name of the mcrouter deployment for the given proxy.
 func GetProxyDeploymentName(c *v1alpha1.MemcachedProxy) string {
-	// TODO: Use hash of proxy name and collision count
+	// TODO: Use collision count
 	return MakeName(fmt.Sprintf("%s-mcrouter", c.Name), []string{c.Name})
 }

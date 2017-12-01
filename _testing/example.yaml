@@ -44,11 +44,11 @@ spec:
 #         "children": [
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceA"]
+#             "pool": "serviceA"
 #           },
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceB"]
+#             "pool": "serviceB"
 #           },
 #         ]
 #       },
@@ -57,11 +57,11 @@ spec:
 #         "children": [
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceA"]
+#             "pool": "serviceA"
 #           },
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceB"]
+#             "pool": "serviceB"
 #           },
 #         ]
 #       },
@@ -70,11 +70,11 @@ spec:
 #         "children": [
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceA"]
+#             "pool": "serviceA"
 #           },
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceB"]
+#             "pool": "serviceB"
 #           },
 #         ]
 #       },
@@ -83,11 +83,11 @@ spec:
 #         "children": [
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceA"]
+#             "pool": "serviceA"
 #           },
 #           {
 #             "type": "PoolRoute",
-#             "children": ["Pool|serviceB"]
+#             "pool": "serviceB"
 #           },
 #         ]
 #       }

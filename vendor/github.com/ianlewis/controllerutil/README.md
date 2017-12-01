@@ -10,7 +10,9 @@ controllerutil is still under active development and has not been extensively te
 
 # Motivation
 
-Kubernetes controllers are often run together as part of a single process but often it's unclear how to manage the lifecycle of each controller. This results in architectures that are error prone and don't handle edge cases well. Particularly failure cases. The goal of this library is to provide an easy way for developers of controllers to take advantage of Go programming, logging, and Kubernetes API client best practices.
+Kubernetes controllers are often run together as part of a single process but often it's unclear how to manage the lifecycle of each controller. Each controller also makes use of one or more "informers" which are used to watch the Kubernetes API for changes to objects and maintain a local cache per object type. Informers have their own lifecycle and need to managed as well.
+
+This complexity, while powerful, often results in architectures that are error prone and don't handle edge cases well; particularly failure cases. The goal of this library is to provide an easy way for developers of controllers to take advantage of Go programming, logging, and Kubernetes API client best practices.
 
 # Installation
 
@@ -35,19 +37,18 @@ func Example_customResourceDefinition() {
 		// handle error
 	}
 
-	// Create a new controllerutil instance
-	m := controllerutil.Newcontrollerutil("foo", client)
+	// Create a new ControllerManager instance
+	m := controllerutil.NewControllerManager("foo", client)
 
 	// Register the foo controller.
 	m.Register("foo", func(ctx *controller.Context) controller.Interface {
 		return NewFooController(
-			// ctx.Client is the same client passed to controllerutil.NewControllerManager
+			// ctx.Client is the same client passed to controllerutil.New
 			ctx.Client,
 			// fooclient is the CRD client instance
 			fooclient,
 			// ctx.SharedInformers manages lifecycle of all shared informers
-			// InformerFor registers the informer for the given type if it hasn't
- 			// been registered already.
+			// InformerFor registers the informer for the given type if it hasn't been registered already.
 			ctx.SharedInformers.InformerFor(
 				&examplev1.Foo{},
 				func() cache.SharedIndexInformer {
@@ -55,9 +56,7 @@ func Example_customResourceDefinition() {
 						fooclient,
 						metav1.NamespaceAll,
 						12*time.Hour,
-						cache.Indexers{
-              cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
-            },
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 					)
 				},
 			),

@@ -21,4 +21,4 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 
 [[constraint]]
   name = "github.com/ianlewis/controllerutil"
-  revision = "69e9b6a6784f40c39b00f62b9178cde17d34fefc"
+  revision = "bb10d4b15819ee0a7aa09ab288fe4b4bcc1cdb7d"

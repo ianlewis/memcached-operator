@@ -63,7 +63,7 @@ func (m *ControllerManager) Register(name string, c controller.Constructor) {
 //
 // The ControllerManager starts shared informers and waits for their caches to be synced before starting controllers. Controllers do not need to wait for informers to sync.
 func (m *ControllerManager) Run(ctx context.Context) error {
-	m.l.Info.V(4).Print("Starting controller manager")
+	m.l.Info.V(4).Print("starting controller manager")
 
 	wg, ctx := errgroup.WithContext(ctx)
 
@@ -100,14 +100,19 @@ func (m *ControllerManager) Run(ctx context.Context) error {
 
 	// Start all controllers
 	for name, c := range controllers {
-		wg.Go(func() error {
-			defer m.l.Info.V(4).Printf("Controller %q stopped", name)
-			m.l.Info.V(4).Printf("Starting controller %q", name)
-			return c.Run(ctx)
-		})
+		// wg.Go does not allow us to define parameters to the goroutine function so we
+		// encapsulate the wg.Go call in a function so that we can capture the necessary variables.
+		// See: https://golang.org/doc/faq#closures_and_goroutines
+		func(name string, c controller.Interface) {
+			wg.Go(func() error {
+				defer m.l.Info.V(4).Printf("controller %q stopped", name)
+				m.l.Info.V(4).Printf("starting controller %q", name)
+				return c.Run(ctx)
+			})
+		}(name, c)
 	}
 
-	m.l.Info.V(4).Print("Controller manager started")
+	m.l.Info.V(4).Print("controller manager started")
 
 	return wg.Wait()
 }

@@ -36,7 +36,8 @@ import (
 	examplev1 "github.com/ianlewis/controllerutil/example/pkg/apis/example.com/v1"
 	fooclientset "github.com/ianlewis/controllerutil/example/pkg/client/clientset/versioned"
 	fooinformers "github.com/ianlewis/controllerutil/example/pkg/client/informers/externalversions/example/v1"
-	foo "github.com/ianlewis/controllerutil/example/pkg/controller/foo"
+	"github.com/ianlewis/controllerutil/example/pkg/controller/bar"
+	"github.com/ianlewis/controllerutil/example/pkg/controller/foo"
 )
 
 func main() {
@@ -78,6 +79,28 @@ func main() {
 	m.Register("foo", func(ctx *controller.Context) controller.Interface {
 		return foo.New(
 			"foo",
+			ctx.Client,
+			fooclient,
+			ctx.SharedInformers.InformerFor(
+				&examplev1.Foo{},
+				func() cache.SharedIndexInformer {
+					return fooinformers.NewFooInformer(
+						fooclient,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.Recorder,
+			ctx.Logger,
+		)
+	})
+
+	// Register the bar controller.
+	m.Register("bar", func(ctx *controller.Context) controller.Interface {
+		return bar.New(
+			"bar",
 			ctx.Client,
 			fooclient,
 			ctx.SharedInformers.InformerFor(

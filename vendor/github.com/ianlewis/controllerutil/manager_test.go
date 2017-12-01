@@ -41,10 +41,15 @@ func (c *TestController) Run(ctx context.Context) error {
 func TestRun(t *testing.T) {
 	client := newClient(t)
 
-	m := New("test-run", client)
-	c := &TestController{}
-	m.Register("test", func(ctx *controller.Context) controller.Interface {
-		return c
+	m := NewControllerManager("test-run", client)
+	c1 := &TestController{}
+	m.Register("test-1", func(ctx *controller.Context) controller.Interface {
+		return c1
+	})
+
+	c2 := &TestController{}
+	m.Register("test-2", func(ctx *controller.Context) controller.Interface {
+		return c2
 	})
 
 	var wg sync.WaitGroup
@@ -62,7 +67,7 @@ func TestRun(t *testing.T) {
 	cancel()
 	wg.Wait()
 
-	if !c.called {
+	if !c1.called || !c2.called {
 		t.Error("controller was never started")
 	}
 }

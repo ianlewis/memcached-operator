@@ -148,7 +148,7 @@
 [[projects]]
   name = "github.com/ianlewis/controllerutil"
   packages = [".","controller","informers","logging"]
-  revision = "69e9b6a6784f40c39b00f62b9178cde17d34fefc"
+  revision = "bb10d4b15819ee0a7aa09ab288fe4b4bcc1cdb7d"
 
 [[projects]]
   name = "github.com/imdario/mergo"
@@ -284,6 +284,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5cd769463f91fb2e241817ce444300164a86d0ed8344950a44435a6942dd956a"
+  inputs-digest = "898190da146b6e1c430e3649df2b102432b2241cb928235dbe315f4f56886b08"
   solver-name = "gps-cdcl"
   solver-version = 1

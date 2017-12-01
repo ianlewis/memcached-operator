@@ -16,7 +16,6 @@ package controllerutil_test
 
 import (
 	"context"
-	"log"
 
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -30,7 +29,7 @@ import (
 func ExampleControllerManager() {
 	config, _ := rest.InClusterConfig()
 	client, _ := clientset.NewForConfig(config)
-	m := controllerutil.New("hoge", client)
+	m := controllerutil.NewControllerManager("hoge", client)
 
 	err := m.Run(context.Background())
 	if err != nil {
@@ -39,10 +38,9 @@ func ExampleControllerManager() {
 }
 
 type HogeController struct {
-	client      clientset.Interface
-	recorder    record.EventRecorder
-	infoLogger  *logging.Logger
-	errorLogger *log.Logger
+	client   clientset.Interface
+	recorder record.EventRecorder
+	l        *logging.Logger
 }
 
 func (c *HogeController) Run(ctx context.Context) error { return nil }
@@ -50,7 +48,7 @@ func (c *HogeController) Run(ctx context.Context) error { return nil }
 func ExampleControllerManager_Register() {
 	config, _ := rest.InClusterConfig()
 	client, _ := clientset.NewForConfig(config)
-	m := controllerutil.New("hoge", client)
+	m := controllerutil.NewControllerManager("hoge", client)
 
 	// Register the hoge controller. ctx is a controller context.
 	m.Register("hoge", func(ctx *controller.Context) controller.Interface {
@@ -60,9 +58,7 @@ func ExampleControllerManager_Register() {
 			// ctx.Recorder is used for recording Kubernetes events.
 			recorder: ctx.Recorder,
 			// ctx.InfoLogger is a convenient wrapper used for logging.
-			infoLogger: ctx.InfoLogger,
-			// ctx.ErrorLogger is a convenient wrapper used for error logging.
-			errorLogger: ctx.ErrorLogger,
+			l: ctx.Logger,
 		}
 	})
 }

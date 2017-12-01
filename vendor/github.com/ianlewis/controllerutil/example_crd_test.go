@@ -16,7 +16,6 @@ package controllerutil_test
 
 import (
 	"context"
-	"log"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,8 +42,7 @@ type FooController struct {
 	fooClient   fooclientset.Interface
 	fooInformer cache.SharedIndexInformer
 	recorder    record.EventRecorder
-	infoLogger  *logging.Logger
-	errorLogger *log.Logger
+	l           *logging.Logger
 }
 
 func (c *FooController) Run(ctx context.Context) error {
@@ -58,16 +56,14 @@ func NewFooController(
 	fooClient fooclientset.Interface,
 	fooInformer cache.SharedIndexInformer,
 	recorder record.EventRecorder,
-	infoLogger *logging.Logger,
-	errorLogger *log.Logger,
+	l *logging.Logger,
 ) *FooController {
 	c := &FooController{
 		client:      client,
 		fooClient:   fooClient,
 		fooInformer: fooInformer,
 		recorder:    recorder,
-		infoLogger:  infoLogger,
-		errorLogger: errorLogger,
+		l:           l,
 	}
 
 	// Attach event handlers
@@ -88,7 +84,7 @@ func Example_customResourceDefinition() {
 	}
 
 	// Create a new ControllerManager instance
-	m := controllerutil.New("foo", client)
+	m := controllerutil.NewControllerManager("foo", client)
 
 	// Register the foo controller.
 	m.Register("foo", func(ctx *controller.Context) controller.Interface {
@@ -100,12 +96,7 @@ func Example_customResourceDefinition() {
 			// ctx.SharedInformers manages lifecycle of all shared informers
 			// InformerFor registers the informer for the given type if it hasn't been registered already.
 			ctx.SharedInformers.InformerFor(
-				metav1.NamespaceAll,
-				metav1.GroupVersionKind{
-					Group:   examplev1.SchemeGroupVersion.Group,
-					Version: examplev1.SchemeGroupVersion.Version,
-					Kind:    "Foo",
-				},
+				&examplev1.Foo{},
 				func() cache.SharedIndexInformer {
 					return fooinformers.NewFooInformer(
 						fooclient,
@@ -117,10 +108,8 @@ func Example_customResourceDefinition() {
 			),
 			// ctx.Recorder is used for recording Kubernetes events.
 			ctx.Recorder,
-			// ctx.InfoLogger is a convenient wrapper used for logging.
-			ctx.InfoLogger,
-			// ctx.ErrorLogger is a convenient wrapper used for error logging.
-			ctx.ErrorLogger,
+			// ctx.Logger is a convenient wrapper used for logging.
+			ctx.Logger,
 		)
 	})
 

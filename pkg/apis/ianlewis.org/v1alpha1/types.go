@@ -19,6 +19,7 @@ import (
 
 	"github.com/mitchellh/hashstructure"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -42,14 +43,18 @@ type MemcachedProxy struct {
 }
 
 func (p *MemcachedProxy) ApplyDefaults() {
-	for _, r := range p.Spec.Rules {
-		r.ApplyDefaults(p)
-	}
+	p.Spec.ApplyDefaults(p)
 }
 
 // MemcachedProxySpec is the specification of the desired state of a MemcachedProxy.
 type MemcachedProxySpec struct {
-	Rules []RuleSpec `json:"rules"`
+	Rules    RuleSpec     `json:"rules"`
+	McRouter McRouterSpec `json:"mcrouter"`
+}
+
+func (s *MemcachedProxySpec) ApplyDefaults(p *MemcachedProxy) {
+	s.McRouter.ApplyDefaults(p)
+	s.Rules.ApplyDefaults(p)
 }
 
 // UpdateHash updates the
@@ -60,6 +65,22 @@ func (s *MemcachedProxySpec) GetHash() (string, error) {
 	}
 	// Return hex format.
 	return strconv.FormatUint(hash, 16), nil
+}
+
+type McRouterSpec struct {
+	Image     string                      `json:"image,omitempty"`
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	Port      *int32                      `json:"port,omitempty"`
+}
+
+func (s *McRouterSpec) ApplyDefaults(p *MemcachedProxy) {
+	if s.Image == "" {
+		s.Image = "jphalip/mcrouter:0.36.0"
+	}
+	if s.Port == nil {
+		port := int32(11211)
+		s.Port = &port
+	}
 }
 
 // RuleSpec defines a routing rule to either a list of services or child rules

@@ -24,8 +24,6 @@ import (
 
 var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
-
-	memcachedPort = int32(11211)
 )
 
 // Controller represents a memcached proxy service controller which watches MemcachedProxy objects and creates associated Service objects.
@@ -216,9 +214,9 @@ func (c *Controller) syncHandler(key string) error {
 						corev1.ServicePort{
 							Name:     "memcached",
 							Protocol: "TCP",
-							Port:     memcachedPort,
+							Port:     *p.Spec.McRouter.Port,
 							TargetPort: intstr.IntOrString{
-								IntVal: memcachedPort,
+								IntVal: *p.Spec.McRouter.Port,
 							},
 						},
 					},

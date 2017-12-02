@@ -25,8 +25,10 @@ import (
 	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informers "k8s.io/client-go/informers/core/v1"
+	v1beta1informers "k8s.io/client-go/informers/extensions/v1beta1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -40,6 +42,7 @@ import (
 	ianlewisorginformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxy"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxyconfigmap"
+	"github.com/ianlewis/memcached-operator/pkg/controller/proxydeployment"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxyservice"
 )
 
@@ -189,6 +192,50 @@ func main() {
 				&corev1.Pod{},
 				func() cache.SharedIndexInformer {
 					return corev1informers.NewPodInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.Recorder,
+			ctx.Logger,
+			*configMapWorkers,
+		)
+	})
+
+	m.Register("memcached-proxy-deployment", func(ctx *controller.Context) controller.Interface {
+		return proxydeployment.New(
+			"memcached-proxy-deployment",
+			ctx.Client,
+			ianlewisorgClient,
+			ctx.SharedInformers.InformerFor(
+				&v1alpha1.MemcachedProxy{},
+				func() cache.SharedIndexInformer {
+					return ianlewisorginformers.NewMemcachedProxyInformer(
+						ianlewisorgClient,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&v1beta1.Deployment{},
+				func() cache.SharedIndexInformer {
+					return v1beta1informers.NewDeploymentInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&corev1.ConfigMap{},
+				func() cache.SharedIndexInformer {
+					return corev1informers.NewConfigMapInformer(
 						ctx.Client,
 						*namespace,
 						*defaultResync,

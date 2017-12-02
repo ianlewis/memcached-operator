@@ -49,8 +49,8 @@ type Route struct {
 
 // McRouterConfig represents JSON configuration for mcrouter.
 type McRouterConfig struct {
-	Pools  map[string]Pool `json:"pools,omitempty"`
-	Routes []StringOrRoute `json:"routes,omitempty"`
+	Pools map[string]Pool `json:"pools,omitempty"`
+	Route StringOrRoute   `json:"route,omitempty"`
 }
 
 func (c *Controller) configForProxy(p *v1alpha1.MemcachedProxy) (*McRouterConfig, error) {
@@ -62,14 +62,12 @@ func (c *Controller) configForProxy(p *v1alpha1.MemcachedProxy) (*McRouterConfig
 
 	// Parse the proxy's rules and create the mcrouter routes
 	// A list of services is also built up when parsing the rules
-	for _, r := range p.Spec.Rules {
-		route, _, err := c.routeForRule(r, services)
-		if err != nil {
-			return nil, err
-		}
-
-		config.Routes = append(config.Routes, route)
+	route, _, err := c.routeForRule(p.Spec.Rules, services)
+	if err != nil {
+		return nil, err
 	}
+
+	config.Route = route
 
 	// Create a memcached server pool for each service found
 	for poolName, s := range services {

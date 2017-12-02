@@ -18,38 +18,45 @@ type Pool struct {
 
 // OperationPolicies configures operation policies for different actions via mcrouter
 type OperationPolicies struct {
-	Add    *Route `json:"add,omitempty"`
-	Set    *Route `json:"set,omitempty"`
-	Delete *Route `json:"delete,omitempty"`
-	Get    *Route `json:"empty,omitempty"`
+	Add    *StringOrRoute `json:"add,omitempty"`
+	Set    *StringOrRoute `json:"set,omitempty"`
+	Delete *StringOrRoute `json:"delete,omitempty"`
+	Get    *StringOrRoute `json:"empty,omitempty"`
 }
 
-// Route describes an mcrouter route. It can be either an object or a string.
-type Route struct {
-	Type              string             `json:"type"`
-	DefaultPolicy     *Route             `json:"default_policy,omitempty"`
-	OperationPolicies *OperationPolicies `json:"operation_policies,omitempty"`
-	Children          []Route            `json:"children,omitempty"`
-	StringVal         string
+// StringOrRoute describes an mcrouter route. It can be either an object or a string.
+type StringOrRoute struct {
+	Route     *Route
+	StringVal string
 }
 
 // MarshalJSON implements the json.Marshaller interface.
-func (r Route) MarshalJSON() ([]byte, error) {
+func (r StringOrRoute) MarshalJSON() ([]byte, error) {
 	if r.StringVal != "" {
 		return json.Marshal(r.StringVal)
 	} else {
-		return json.Marshal(r)
+		return json.Marshal(r.Route)
 	}
+}
+
+// Route is the object version of a mcrouter route
+type Route struct {
+	Type              string             `json:"type"`
+	DefaultPolicy     *StringOrRoute     `json:"default_policy,omitempty"`
+	OperationPolicies *OperationPolicies `json:"operation_policies,omitempty"`
+	Children          []StringOrRoute    `json:"children,omitempty"`
 }
 
 // McRouterConfig represents JSON configuration for mcrouter.
 type McRouterConfig struct {
-	Pools  []Pool  `json:"pools,omitempty"`
-	Routes []Route `json:"routes,omitempty"`
+	Pools  map[string]Pool `json:"pools,omitempty"`
+	Routes []StringOrRoute `json:"routes,omitempty"`
 }
 
 func (c *Controller) configForProxy(p *v1alpha1.MemcachedProxy) (*McRouterConfig, error) {
 	config := &McRouterConfig{}
+	config.Pools = make(map[string]Pool)
+
 	// A map of pool name to ServiceSpec
 	services := make(map[string]*v1alpha1.ServiceSpec)
 
@@ -65,12 +72,12 @@ func (c *Controller) configForProxy(p *v1alpha1.MemcachedProxy) (*McRouterConfig
 	}
 
 	// Create a memcached server pool for each service found
-	for _, s := range services {
+	for poolName, s := range services {
 		pool, err := c.poolForService(s)
 		if err != nil {
 			return nil, err
 		}
-		config.Pools = append(config.Pools, pool)
+		config.Pools[poolName] = pool
 	}
 
 	return config, nil
@@ -125,7 +132,7 @@ func (c *Controller) poolForService(s *v1alpha1.ServiceSpec) (Pool, error) {
 		for _, eport := range subset.Ports {
 			if portMatches(eport, port.TargetPort) {
 				for _, addr := range subset.Addresses {
-					pool.Servers = append(pool.Servers, addr.IP+":"+string(port.Port))
+					pool.Servers = append(pool.Servers, addr.IP+":"+fmt.Sprint(port.Port))
 				}
 			}
 		}
@@ -145,47 +152,55 @@ func portMatches(eport corev1.EndpointPort, targetPort intstr.IntOrString) bool 
 }
 
 // routeForRule creates a mcrouter route from a memcached proxy rule
-func (c *Controller) routeForRule(r v1alpha1.RuleSpec, services map[string]*v1alpha1.ServiceSpec) (Route, map[string]*v1alpha1.ServiceSpec, error) {
+func (c *Controller) routeForRule(r v1alpha1.RuleSpec, services map[string]*v1alpha1.ServiceSpec) (StringOrRoute, map[string]*v1alpha1.ServiceSpec, error) {
 	if r.Type == v1alpha1.ReplicatedRuleType {
 		// Create a replicated route
 		// See: https://github.com/facebook/mcrouter/wiki/Replicated-pools-setup
-		var route Route
+		var route StringOrRoute
 		if r.Service != nil {
 			// Replicate among a group of servers in a pool
 			poolName := poolNameForServiceSpec(r.Service)
 			services[poolName] = r.Service
-			route = Route{
-				Type: "OperationSelectorRoute",
-				DefaultPolicy: &Route{
-					StringVal: "AllSyncRoute|Pool|" + poolName,
-				},
-				OperationPolicies: &OperationPolicies{
-					Delete: &Route{
-						StringVal: "LatestRoute|Pool|" + poolName,
+			route = StringOrRoute{
+				Route: &Route{
+					Type: "OperationSelectorRoute",
+					DefaultPolicy: &StringOrRoute{
+						StringVal: "AllSyncRoute|Pool|" + poolName,
+					},
+					OperationPolicies: &OperationPolicies{
+						Delete: &StringOrRoute{
+							StringVal: "LatestRoute|Pool|" + poolName,
+						},
 					},
 				},
 			}
 		} else {
 			// Replicate among a group of child routes
-			var children []Route
+			var children []StringOrRoute
 			for _, route := range r.Children {
 				child, _, err := c.routeForRule(route, services)
 				if err != nil {
-					return Route{}, services, err
+					return StringOrRoute{}, services, err
 				}
 				children = append(children, child)
 			}
 
-			route = Route{
-				Type: "OperationSelectorRoute",
-				DefaultPolicy: &Route{
-					Type:     "AllSyncRoute",
-					Children: children,
-				},
-				OperationPolicies: &OperationPolicies{
-					Delete: &Route{
-						Type:     "LatestRoute",
-						Children: children,
+			route = StringOrRoute{
+				Route: &Route{
+					Type: "OperationSelectorRoute",
+					DefaultPolicy: &StringOrRoute{
+						Route: &Route{
+							Type:     "AllSyncRoute",
+							Children: children,
+						},
+					},
+					OperationPolicies: &OperationPolicies{
+						Delete: &StringOrRoute{
+							Route: &Route{
+								Type:     "LatestRoute",
+								Children: children,
+							},
+						},
 					},
 				},
 			}
@@ -196,32 +211,34 @@ func (c *Controller) routeForRule(r v1alpha1.RuleSpec, services map[string]*v1al
 	} else if r.Type == v1alpha1.ShardedRuleType {
 		// Create a sharded rule
 		// See: https://github.com/facebook/mcrouter/wiki/Sharded-pools-setup
-		var route Route
+		var route StringOrRoute
 		if r.Service != nil {
 			// Shard among a group of servers in a pool
 			poolName := poolNameForServiceSpec(r.Service)
 			services[poolName] = r.Service
-			route = Route{
+			route = StringOrRoute{
 				StringVal: "PoolRoute|" + poolName,
 			}
 		} else {
 			// Shard among a group of child routes
-			var children []Route
+			var children []StringOrRoute
 			for _, route := range r.Children {
 				child, _, err := c.routeForRule(route, services)
 				if err != nil {
-					return Route{}, services, err
+					return StringOrRoute{}, services, err
 				}
 				children = append(children, child)
 			}
-			route = Route{
-				Type:     "HashRoute",
-				Children: children,
+			route = StringOrRoute{
+				Route: &Route{
+					Type:     "HashRoute",
+					Children: children,
+				},
 			}
 		}
 
 		return route, services, nil
 	}
 
-	return Route{}, services, fmt.Errorf("unknown rule type: %q", r.Type)
+	return StringOrRoute{}, services, fmt.Errorf("unknown rule type: %q", r.Type)
 }

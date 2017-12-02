@@ -200,7 +200,6 @@ func (c *Controller) syncHandler(key string) error {
 			c.l.Info.V(4).Printf("creating service %q", ns+"/"+sName)
 
 			// Create the service
-			dName := controller.GetProxyDeploymentName(p)
 			s := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            sName,
@@ -209,8 +208,8 @@ func (c *Controller) syncHandler(key string) error {
 				},
 				Spec: corev1.ServiceSpec{
 					Selector: map[string]string{
-						// TODO: Use a better selector.
-						"proxy-name": dName,
+						// FIXME: use labels from deployment
+						"proxy-name": "example",
 					},
 					Type: "ClusterIP",
 					Ports: []corev1.ServicePort{

@@ -77,7 +77,7 @@ func New(
 		pLister:   ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
 		cmLister:  corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
 		sLister:   corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
-		epLister:  corev1listers.NewEndpointsLister(serviceInformer.GetIndexer()),
+		epLister:  corev1listers.NewEndpointsLister(endpointsInformer.GetIndexer()),
 		podLister: corev1listers.NewPodLister(podInformer.GetIndexer()),
 
 		recorder: recorder,

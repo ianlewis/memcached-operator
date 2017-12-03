@@ -26,3 +26,11 @@ func MakeName(prefix string, hashValues []string) string {
 func GetProxyServiceName(p *v1alpha1.MemcachedProxy) string {
 	return MakeName(fmt.Sprintf("%s-memcached-", p.Name), []string{p.Name})
 }
+
+// GetProxyServiceSelector returns labels used by the proxy service's selector
+func GetProxyServiceSelector(p *v1alpha1.MemcachedProxy) map[string]string {
+	return map[string]string{
+		"memcached-operator": "true",
+		"mcrouter":           MakeName(p.Name+"-", []string{p.Namespace, p.Name}),
+	}
+}

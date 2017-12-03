@@ -119,12 +119,12 @@ type MemcachedProxyStatus struct {
 	// The generation observed by the MemcachedProxy controller. Not used currently as generation is not updated for CRDs.
 	// Proper support for CRDs is being worked on.
 	// See: https://github.com/kubernetes/community/pull/913
-	// TODO: implement
+	// TODO: implement ObservedGeneration
 	// ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// This is a workaround for the fact that Generation and sub-resources are not fully supported for CRDs yet.
 	// We assume that end users will not update the status object and especially this field.
 	ObservedSpecHash string `json:"observedSpecHash,omitempty"`
-	// TODO: implement
+	// TODO: updated replicas in status
 	// Replicas int32 `json:"replicas,omitempty"`
 }
 

@@ -205,11 +205,8 @@ func (c *Controller) syncHandler(key string) error {
 					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
 				},
 				Spec: corev1.ServiceSpec{
-					Selector: map[string]string{
-						// FIXME: use labels from deployment
-						"proxy-name": "example",
-					},
-					Type: "ClusterIP",
+					Selector: controller.GetProxyServiceSelector(p),
+					Type:     "ClusterIP",
 					Ports: []corev1.ServicePort{
 						corev1.ServicePort{
 							Name:     "memcached",

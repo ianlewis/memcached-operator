@@ -219,10 +219,7 @@ func (c *Controller) syncHandler(key string) error {
 				Replicas: &replicas,
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"memcached-operator": "true",
-							"mcrouter":           controller.MakeName(p.Name+"-", []string{p.Namespace, p.Name}),
-						},
+						Labels: controller.GetProxyServiceSelector(p),
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{

@@ -17,10 +17,10 @@ memcached-operator is still under active development and has not been extensivel
 ## Installation
 
 TODO: Create installation manifests and instructions
+TODO: Create helm chart
 
 ## Usage
 
-TODO: Create command line client
 TODO: Usage documentation
 
 ## Removal

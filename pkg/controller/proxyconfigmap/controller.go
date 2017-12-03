@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,11 +35,13 @@ type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
-	pLister   ianlewisorglisters.MemcachedProxyLister
-	cmLister  corev1listers.ConfigMapLister
-	sLister   corev1listers.ServiceLister
-	epLister  corev1listers.EndpointsLister
-	podLister corev1listers.PodLister
+	// Watches are limited to this namespace
+	namespace string
+
+	pLister  ianlewisorglisters.MemcachedProxyLister
+	cmLister corev1listers.ConfigMapLister
+	sLister  corev1listers.ServiceLister
+	epLister corev1listers.EndpointsLister
 
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
@@ -60,11 +63,11 @@ func New(
 	name string,
 	client clientset.Interface,
 	ianlewisorgClient ianlewisorgclientset.Interface,
+	namespace string,
 	proxyInformer cache.SharedIndexInformer,
 	configMapInformer cache.SharedIndexInformer,
 	serviceInformer cache.SharedIndexInformer,
 	endpointsInformer cache.SharedIndexInformer,
-	podInformer cache.SharedIndexInformer,
 	recorder record.EventRecorder,
 	logger *logging.Logger,
 	workers int,
@@ -73,11 +76,10 @@ func New(
 		client:            client,
 		ianlewisorgClient: ianlewisorgClient,
 
-		pLister:   ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
-		cmLister:  corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
-		sLister:   corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
-		epLister:  corev1listers.NewEndpointsLister(endpointsInformer.GetIndexer()),
-		podLister: corev1listers.NewPodLister(podInformer.GetIndexer()),
+		pLister:  ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
+		cmLister: corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
+		sLister:  corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
+		epLister: corev1listers.NewEndpointsLister(endpointsInformer.GetIndexer()),
 
 		recorder: recorder,
 
@@ -95,9 +97,15 @@ func New(
 		DeleteFunc: c.enqueue,
 	})
 
+	// Add an event handler for endpoints so that we can update mcrouter's configuration
+	// when pods in memcached clusters change.
+	endpointsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    c.addEndpoints,
+		UpdateFunc: c.updateEndpoints,
+		DeleteFunc: c.deleteEndpoints,
+	})
+
 	// TODO: Watch configmap for changes and self-heal
-	// TODO: Watch services for changes
-	// TODO: Watch pods for changes
 
 	return c
 }
@@ -168,8 +176,8 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 	return nil
 }
 
-// configMapForProxy gets the desired configmap object based on the given memcached proxy object.
-func (c *Controller) newConfigMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.ConfigMap, error) {
+// configMapDataForProxy renders the mcrouter configmap data
+func (c *Controller) configMapDataForProxy(p *v1alpha1.MemcachedProxy) (map[string]string, error) {
 	// Render config file
 	config, err := c.configForProxy(p)
 	if err != nil {
@@ -180,19 +188,11 @@ func (c *Controller) newConfigMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.C
 		return nil, fmt.Errorf("failed to create render config.json: %v", err)
 	}
 
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "",
-			GenerateName:    fmt.Sprintf("%s-config-", p.Name),
-			Namespace:       p.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
-		},
-		Data: map[string]string{
-			"config.json": string(configJSON),
-		},
+	data := map[string]string{
+		"config.json": string(configJSON),
 	}
 
-	return cm, nil
+	return data, nil
 }
 
 func (c *Controller) syncHandler(key string) error {
@@ -239,9 +239,20 @@ func (c *Controller) syncHandler(key string) error {
 		c.l.Info.V(4).Printf("Creating configmap for %q", key)
 
 		// Create the ConfigMap based on the proxy configuration.
-		cm, err := c.newConfigMapForProxy(p)
+		cmData, err := c.configMapDataForProxy(p)
 		if err != nil {
 			return err
+		}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				// Generate a new unique name on the API server side
+				Name:            "",
+				GenerateName:    fmt.Sprintf("%s-config-", p.Name),
+				Namespace:       p.Namespace,
+				OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+			},
+			Data: cmData,
 		}
 
 		result, err := c.client.CoreV1().ConfigMaps(ns).Create(cm)
@@ -286,8 +297,33 @@ func (c *Controller) syncHandler(key string) error {
 		cm = cmList[0]
 	}
 
-	// TODO: Update configmap if changed
+	// Update configmap if changed
 	c.l.Info.V(4).Printf("found existing configmap %q", cm.Namespace+"/"+cm.Name)
+	// Create the ConfigMap based on the proxy configuration.
+	newData, err := c.configMapDataForProxy(p)
+	if err != nil {
+		return err
+	}
+
+	if !reflect.DeepEqual(cm.Data, newData) {
+		cm.Data = newData
+		result, err := c.client.CoreV1().ConfigMaps(ns).Update(cm)
+		if err != nil {
+			msg := fmt.Sprintf("failed to update configmap for %q: %v", key, err)
+			logging.PrintMulti(c.l.Error, map[logging.Level]string{
+				4: msg,
+				9: fmt.Sprintf("failed to update configmap for %q: %v: %#v", key, err, cm),
+			})
+			c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyConfigMapUpdateReason, msg)
+			return err
+		}
+
+		logging.PrintMulti(c.l.Info, map[logging.Level]string{
+			4: fmt.Sprintf("configmap %q updated", result.Namespace+"/"+result.Name),
+			9: fmt.Sprintf("configmap %q updated: %#v", result.Namespace+"/"+result.Name, result),
+		})
+
+	}
 
 	return nil
 }

@@ -144,6 +144,7 @@ func main() {
 			"memcached-proxy-configmap",
 			ctx.Client,
 			ianlewisorgClient,
+			*namespace,
 			ctx.SharedInformers.InformerFor(
 				&v1alpha1.MemcachedProxy{},
 				func() cache.SharedIndexInformer {
@@ -181,17 +182,6 @@ func main() {
 				&corev1.Endpoints{},
 				func() cache.SharedIndexInformer {
 					return corev1informers.NewEndpointsInformer(
-						ctx.Client,
-						*namespace,
-						*defaultResync,
-						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-					)
-				},
-			),
-			ctx.SharedInformers.InformerFor(
-				&corev1.Pod{},
-				func() cache.SharedIndexInformer {
-					return corev1informers.NewPodInformer(
 						ctx.Client,
 						*namespace,
 						*defaultResync,

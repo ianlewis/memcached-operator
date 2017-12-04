@@ -14,14 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o errexit
-set -o nounset
-set -o pipefail
-
-SCRIPT_ROOT=$(dirname ${BASH_SOURCE})/..
-CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${SCRIPT_ROOT}; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ${GOPATH}/src/k8s.io/code-generator)}
-
-vendor/k8s.io/code-generator/generate-groups.sh all \
-  github.com/ianlewis/memcached-operator/pkg/client github.com/ianlewis/memcached-operator/pkg/apis \
-  ianlewis.org:v1alpha1 \
-  --go-header-file ${SCRIPT_ROOT}/hack/copyright-header.go.txt
+#!/bin/sh
+find . -name vendor -prune -o -name .git -prune -o -path \*.git\* -prune -o -path ./memcached-operator -prune -o -type f -exec grep -ne '\(FIXME\|TODO\):' {} /dev/null \; | sed -e 's/:[ 	]*\/\/[ 	]*/: /'

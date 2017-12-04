@@ -1,0 +1,3 @@
+[submodule "third_party/autogen"]
+	path = third_party/autogen
+	url = https://github.com/mbrukman/autogen.git

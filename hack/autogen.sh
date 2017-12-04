@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 #
-# Copyright 2017 Google Inc.
+# Copyright 2017 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,5 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#!/bin/bash -eu
+#
+
 #!/bin/sh
-find . -name vendor -prune -o -name .git -prune -o -path \*.git\* -prune -o -path ./memcached-operator -prune -o -type f -exec grep -ne '\(FIXME\|TODO\):' {} /dev/null \; | sed -e 's/:[ 	]*\/\/[ 	]*/: /'
+find . -path ./vendor -prune -o -path ./third_party -prune -o -type f \( -iname \*.go -o -iname \*.yaml -o -iname \*.sh \) -print0 | xargs -0 grep -Le "Copyright [0-9][0-9][0-9][0-9] Google LLC" | xargs -r -L1 third_party/autogen/autogen -c "Google LLC" -l apache2 --no-tlc -i
+

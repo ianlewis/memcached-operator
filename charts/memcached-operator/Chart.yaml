@@ -1,0 +1,4 @@
+apiVersion: v1
+description: An operator for memcached clusters
+name: memcached-operator
+version: 0.0.1

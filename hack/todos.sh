@@ -15,4 +15,4 @@
 # limitations under the License.
 
 #!/bin/sh
-find . -name vendor -prune -o -name .git -prune -o -path \*.git\* -prune -o -path ./memcached-operator -prune -o -type f -exec grep -ne '\(FIXME\|TODO\):' {} /dev/null \; | sed -e 's/:[ 	]*\/\/[ 	]*/: /'
+find . -name vendor -prune -o -name third_party -prune -o -name .git -prune -o -path \*.git\* -prune -o -path ./memcached-operator -prune -o -type f -exec grep -ne '\(FIXME\|TODO\):' {} /dev/null \; | sed -e 's/:[ 	]*\/\/[ 	]*/: /'

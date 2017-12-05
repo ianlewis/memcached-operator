@@ -9,4 +9,5 @@ instances are added or removed from the cluster.
 
 - [Architecture](design.md)
 - [Sharded clusters](sharded-clusters.md)
+
 [//]: # (TODO: Replicated clusters doc)

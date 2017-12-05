@@ -2,7 +2,7 @@
 
 This document describes the architecture & design of the memcached operator.
 
-TODO: Update design doc
+[//]: # (TODO: Update design doc)
 
 ## Overview
 

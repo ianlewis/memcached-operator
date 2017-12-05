@@ -20,7 +20,7 @@ memcached-operator relies on [garbage collection](https://kubernetes.io/docs/con
 
 You can install the memcached-operator using the included helm chart.
 
-    $ helm install charts/memcached-operator
+    $ helm install --name memcached-operator charts/memcached-operator
 
 The easiest way to create a memcached cluster is using the [memcached helm chart](https://github.com/kubernetes/charts/tree/master/stable/memcached):
 
@@ -46,13 +46,11 @@ spec:
 
 You can then access your memcached cluster via the `sharded-memcached` service.
 
-## Usage
-
-TODO: Usage documentation
-
 ## Removal
 
-TODO: Removal instructions.
+You can remove the memcached-operator by deleting the helm release.
+
+    $ helm delete --purge memcached-operator
 
 ## Development
 

@@ -16,10 +16,35 @@ memcached-operator is still under active development and has not been extensivel
 
 memcached-operator relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for custom resources which is in Kubernetes 1.8+
 
-## Installation
+## Quickstart
 
-TODO: Create installation manifests and instructions
-TODO: Create helm chart
+You can install the memcached-operator using the included helm chart.
+
+    $ helm install charts/memcached-operator
+
+The easiest way to create a memcached cluster is using the [memcached helm chart](https://github.com/kubernetes/charts/tree/master/stable/memcached):
+
+    $ helm install --name sharded stable/memcached
+
+You can then create a memcached proxy to connect to the cluster.
+
+[embedmd]:# (docs/sharded-example.yaml yaml /apiVersion/ $)
+```yaml
+apiVersion: ianlewis.org/v1alpha1
+kind: MemcachedProxy
+metadata:
+  name: sharded-example
+spec:
+  rules:
+    type: "sharded"
+    service:
+      name: "sharded-memcached"
+      port: 11211
+```
+
+    $ kubectl apply -f docs/sharded-example.yaml
+
+You can then access your memcached cluster via the `sharded-memcached` service.
 
 ## Usage
 

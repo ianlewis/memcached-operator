@@ -58,31 +58,16 @@ Check out memcached-operator to your `GOPATH`
 
 ### Building
 
-memcached-operator can be built using the normal Go build tools.
+memcached-operator can be built using the normal Go build tools. This will build a binary dynamically linked to glibc.
 
-```
-$ go build github.com/ianlewis/memcached-operator/cmd/memcached-operator
-```
+    $ go build
 
-### Running Tests
+You can build a fully statically linked binary as well:
 
-Tests can be run using the normal Go tools.
+    $ make build
 
-TODO: Include dependencies for running tests for vendored libraries in vendor
-
-```
-$ go test
-```
-
-Tests in the vendor directory can be omitted like so.
-
-```
-$ go test $(go list ./... | grep -v /vendor/)
-``` 
-
-### End to End Tests
-
-TODO: Create end-to-end tests and instructions.
+[//]: # (TODO: Include dependencies for running tests for vendored libraries in vendor)
+[//]: # (TODO: Create end-to-end tests and instructions)
 
 ## Disclaimers
 

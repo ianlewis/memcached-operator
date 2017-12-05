@@ -44,7 +44,7 @@ spec:
 
     $ kubectl apply -f docs/sharded-example.yaml
 
-You can then access your memcached cluster via the `sharded-memcached` service.
+You can then access your memcached cluster via the`sharded-memcached`service. Check the [documentation](docs/) for more information.
 
 ## Removal
 

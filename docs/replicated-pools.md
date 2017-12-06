@@ -9,3 +9,15 @@ The memcached operator determines the servers in the pool by using a Kubernetes 
 Here is an example of a `MemcachedProxy` where keys are replicated among a group of memcached instances that are members of the "replicated-memcached" service.
 
 [embedmd]:# (replicated-example.yaml yaml /apiVersion/ $)
+```yaml
+apiVersion: ianlewis.org/v1alpha1
+kind: MemcachedProxy
+metadata:
+  name: replicated-example
+spec:
+  rules:
+    type: "replicated"
+    service:
+      name: "replicated-memcached"
+      port: 11211
+```

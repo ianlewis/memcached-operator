@@ -1,5 +1,7 @@
 # Memcached Operator
 
+[![](https://images.microbadger.com/badges/image/ianmlewis/memcached-operator:v0.0.1.svg)](https://hub.docker.com/r/ianmlewis/memcached-operator/ "memcached-operator on Docker hub")
+
 memcached-operator is a Kubernetes [Operator](https://coreos.com/blog/introducing-operators.html) for deploying and managing a cluster of [Memcached](https://memcached.org/) instances.
 
 memcached-operator provides a single Service endpoint that memcached client applications can connect to to make use of the memcached cluster. It provides this via a memcached proxy which is automatically updated whenever memcached instances are added or removed from the cluster.

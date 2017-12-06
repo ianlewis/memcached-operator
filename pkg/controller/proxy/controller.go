@@ -162,9 +162,9 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
-	c.l.Info.V(4).Printf("Started syncing %q (%v)", key, startTime)
+	c.l.Info.V(4).Printf("started syncing %q (%v)", key, startTime)
 	defer func() {
-		c.l.Info.V(4).Printf("Finished syncing %q (%v)", key, time.Now().Sub(startTime))
+		c.l.Info.V(4).Printf("finished syncing %q (%v)", key, time.Now().Sub(startTime))
 	}()
 
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
@@ -178,8 +178,8 @@ func (c *Controller) syncHandler(key string) error {
 		// The resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			// FIXME
-			return fmt.Errorf("memcached proxy '%s' in work queue no longer exists", key)
+			c.l.Info.V(5).Printf("memcached proxy %q was deleted", key)
+			return nil
 		}
 
 		return err

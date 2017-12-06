@@ -227,7 +227,8 @@ func (c *Controller) syncHandler(key string) error {
 		// The resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			return fmt.Errorf("memcached proxy '%s' in work queue no longer exists", key)
+			c.l.Info.V(5).Printf("memcached proxy %q was deleted", key)
+			return nil
 		}
 
 		return err

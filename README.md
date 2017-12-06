@@ -24,7 +24,7 @@ memcached-operator relies on [garbage collection](https://kubernetes.io/docs/con
 
 ## Quickstart
 
-You can install the memcached-operator using the included helm chart.
+You can install the memcached-operator using the included helm chart. Check out the git repository and run this in the root directory.
 
     $ helm install --name memcached-operator charts/memcached-operator
 

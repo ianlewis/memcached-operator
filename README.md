@@ -1,6 +1,6 @@
 # Memcached Operator
 
-[![](https://images.microbadger.com/badges/image/ianmlewis/memcached-operator:v0.0.2.svg)](https://hub.docker.com/r/ianmlewis/memcached-operator/ "memcached-operator on Docker hub")
+[![](https://images.microbadger.com/badges/image/ianmlewis/memcached-operator:v0.0.2.svg)](https://hub.docker.com/r/ianmlewis/memcached-operator/ "memcached-operator on Docker hub") h[![Go Report Card](https://goreportcard.com/badge/github.com/ianlewis/memcached-operator)](https://goreportcard.com/report/github.com/ianlewis/memcached-operator)
 
 memcached-operator is a Kubernetes [Operator](https://coreos.com/blog/introducing-operators.html) for deploying and managing a cluster of [Memcached](https://memcached.org/) instances.
 

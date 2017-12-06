@@ -20,6 +20,10 @@ The memcached operator will use [mcrouter](https://github.com/facebook/mcrouter)
 
 ![diagram](design.png)
 
-## Scaling Memcached Clusters
+## Pools
 
-When the pods for the memcached cluster are added or deleted, the memcached operator generates a new [mcrouter configuration file](https://github.com/facebook/mcrouter/wiki/Config-Files) and updates a configmap that holds the configuration. When a configmap is updated Kubernetes updates the relavent files mounted in each container. Mcrouter watches changes to the config file and will reload it automatically.
+Each service for a set of memcached clusters maps one-to-one with a [mcrouter pool](https://github.com/facebook/mcrouter/wiki/Pools). The memcached operator supports [sharded](sharded-pools.md) and [replicated](replicated-pools.md) pools, as well as combinations of both, via mcrouter. Sharded clusters shard keys based on a [hash](https://github.com/facebook/mcrouter/wiki/Pools#hash-functions) of the key. Replicated clusters store all keys in on all members of the pool.
+
+## Scaling Memcached Pools
+
+When the pods for the memcached pool are added or deleted, the memcached operator generates a new [mcrouter configuration file](https://github.com/facebook/mcrouter/wiki/Config-Files) and updates a configmap that holds the configuration. When a configmap is updated Kubernetes updates the relavent files mounted in each container. Mcrouter watches changes to the config file and will reload it automatically.

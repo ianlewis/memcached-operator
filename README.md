@@ -6,7 +6,7 @@ memcached-operator provides a single Service endpoint that memcached client appl
 
 memcached-operator supports sharded and replicated pools of servers as well as combinations of both strategies.
 
-![diagram](design.png)
+![diagram](docs/design.png)
 
 See the [documentation](docs/) for more information.
 

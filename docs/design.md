@@ -22,6 +22,10 @@ The memcached operator will use [mcrouter](https://github.com/facebook/mcrouter)
 
 Each service for a set of memcached clusters maps one-to-one with a [mcrouter pool](https://github.com/facebook/mcrouter/wiki/Pools). The memcached operator supports [sharded](sharded-pools.md) and [replicated](replicated-pools.md) pools, as well as combinations of both, via mcrouter. Sharded clusters shard keys based on a [hash](https://github.com/facebook/mcrouter/wiki/Pools#hash-functions) of the key. Replicated clusters store all keys in on all members of the pool.
 
+## Application architecture
+
+The memcached operator application is written in [Go](http://www.golang.org/) and makes extensive use of the [client-go](https://github.com/kubernetes/client-go) Kubernete client library. The main logic is performed by four Kubernetes controllers (control loops); the [proxy](../pkg/controller/proxy/) controller, the [proxydeployment](../pkg/controller/proxydeployment/), the [proxyservice](../pkg/controller/proxyservice) controller, and the [proxyconfigmap](../pkg/controller/proxyconfigmap/) controller. Each controller's control loop is run in parallel in a goroutine. Controllers are managed using the [controllerutil](https://github.com/ianlewis/controllerutil) library.
+
 ## Scaling Memcached Pools
 
 When the pods for the memcached pool are added or deleted, the memcached operator generates a new [mcrouter configuration file](https://github.com/facebook/mcrouter/wiki/Config-Files) and updates a configmap that holds the configuration. When a configmap is updated Kubernetes updates the relavent files mounted in each container. Mcrouter watches changes to the config file and will reload it automatically.

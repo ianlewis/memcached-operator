@@ -8,6 +8,7 @@ this via a memcached proxy which is automatically updated whenever memcached
 instances are added or removed from the cluster.
 
 - [Architecture](design.md)
-- [Sharded clusters](sharded-clusters.md)
+- [Sharded pools](sharded-pools.md)
+- [Sharded pools](sharded-pools.md)
 
-[//]: # (TODO: Replicated clusters doc)
+[//]: # (TODO: Combined sharded/replicated clusters doc)

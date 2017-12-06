@@ -4,6 +4,12 @@ memcached-operator is a Kubernetes [Operator](https://coreos.com/blog/introducin
 
 memcached-operator provides a single Service endpoint that memcached client applications can connect to to make use of the memcached cluster. It provides this via a memcached proxy which is automatically updated whenever memcached instances are added or removed from the cluster.
 
+memcached-operator supports sharded and replicated pools of servers as well as combinations of both strategies.
+
+![diagram](design.png)
+
+See the [documentation](docs/) for more information.
+
 ## Project Status
 
 **Project status:** *alpha* 

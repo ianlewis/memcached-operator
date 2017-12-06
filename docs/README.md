@@ -9,6 +9,6 @@ instances are added or removed from the cluster.
 
 - [Architecture](design.md)
 - [Sharded pools](sharded-pools.md)
-- [Sharded pools](sharded-pools.md)
+- [Replicatedpools](replicated-pools.md)
 
 [//]: # (TODO: Combined sharded/replicated clusters doc)

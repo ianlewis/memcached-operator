@@ -126,6 +126,8 @@ type MemcachedProxyStatus struct {
 	ObservedSpecHash string `json:"observedSpecHash,omitempty"`
 	// TODO: updated replicas in status
 	// Replicas int32 `json:"replicas,omitempty"`
+
+	// TODO: Determine other status fields (ready? stats from mcrouter?)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

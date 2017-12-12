@@ -8,8 +8,7 @@ this via a memcached proxy which is automatically updated whenever memcached
 instances are added or removed from the cluster.
 
 - [Architecture](design.md)
+- [The MemcachedProxy Custom Resource](memcachedproxy-crd.md)
 - [Sharded pools](sharded-pools.md)
 - [Replicated pools](replicated-pools.md)
 - [Combined Sharded+Replicated pools](combined-pools.md)
-
-[//]: # (TODO: Doc on the format of the MemcachedProxy CRD object)

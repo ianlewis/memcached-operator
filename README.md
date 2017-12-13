@@ -10,7 +10,7 @@ memcached-operator supports sharded and replicated pools of servers as well as c
 
 ![diagram](docs/design.png)
 
-See the [documentation](docs/) for more information.
+See the [documentation](docs/README.md) for more information.
 
 ## Project Status
 
@@ -52,7 +52,7 @@ spec:
 
     $ kubectl apply -f docs/sharded-example.yaml
 
-You can then access your memcached cluster via the`sharded-memcached`service. Check the [documentation](docs/) for more information.
+You can then access your memcached cluster via the`sharded-memcached`service. Check the [documentation](docs/README.md) for more information.
 
 ## Removal
 

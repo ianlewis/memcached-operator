@@ -24,7 +24,7 @@ Each service for a set of memcached clusters maps one-to-one with a [mcrouter po
 
 ## Application architecture
 
-The memcached operator application is written in [Go](http://www.golang.org/) and makes extensive use of the [client-go](https://github.com/kubernetes/client-go) Kubernete client library. The main logic is performed by four Kubernetes controllers (control loops); the [proxy](../pkg/controller/proxy/) controller, the [proxydeployment](../pkg/controller/proxydeployment/), the [proxyservice](../pkg/controller/proxyservice) controller, and the [proxyconfigmap](../pkg/controller/proxyconfigmap/) controller. Each controller's control loop is run in parallel in a goroutine. Controllers are managed using the [controllerutil](https://github.com/ianlewis/controllerutil) library.
+The memcached operator application is written in [Go](http://www.golang.org/) and makes extensive use of the Kubernetes [client-go](https://github.com/kubernetes/client-go) client library. The main logic is performed by four Kubernetes controllers (control loops); the [proxy](../pkg/controller/proxy/) controller, the [proxydeployment](../pkg/controller/proxydeployment/) controller, the [proxyservice](../pkg/controller/proxyservice) controller, and the [proxyconfigmap](../pkg/controller/proxyconfigmap/) controller. Each controller's control loop is run in parallel in a goroutine. Controllers are managed using the [controllerutil](https://github.com/ianlewis/controllerutil) library.
 
 ## Scaling Memcached Pools
 

@@ -42,7 +42,7 @@ var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
-// Cotroller represents a memcached proxy config map controller that
+// Controller represents a memcached proxy config map controller that
 // watches MemcachedProxy objects and creates a ConfigMap used to
 // configure mcrouter.
 type Controller struct {

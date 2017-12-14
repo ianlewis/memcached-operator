@@ -1,6 +1,8 @@
 # Memcached Operator Documentation
 
-memcached-operator is a Kubernetes [Operator](https://coreos.com/blog/introducing-operators.html) for deploying and managing a cluster of [Memcached](https://memcached.org/) instances.
+memcached-operator is a Kubernetes
+[Operator](https://coreos.com/blog/introducing-operators.html) for
+[Memcached](https://memcached.org/) clusters.
 
 memcached-operator provides a single Service endpoint that memcached client
 applications can connect to to make use of the memcached cluster. It provides

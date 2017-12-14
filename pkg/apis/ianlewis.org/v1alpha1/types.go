@@ -127,6 +127,11 @@ type MemcachedProxyStatus struct {
 	// TODO: updated replicas in status
 	// Replicas int32 `json:"replicas,omitempty"`
 
+	// Initialized indicates that the object has been initialized
+	// by the controller and it's default values set.
+	// TODO: Use initializers to set defaults (>1.9): https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers
+	Initialized bool `json:"initialized,omitempty"`
+
 	// TODO: Determine other status fields (ready? stats from mcrouter?)
 }
 

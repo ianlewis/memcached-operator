@@ -253,13 +253,11 @@ func (c *Controller) syncHandler(key string) error {
 	if len(cmList) == 0 {
 		c.l.Info.V(4).Printf("Creating configmap for %q", key)
 
-		// Create the ConfigMap based on the proxy configuration.
-		cmData, err := c.configMapDataForProxy(p)
-		if err != nil {
-			return err
-		}
-
 		cm := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				// Generate a new unique name on the API server side
 				Name:            "",
@@ -267,26 +265,23 @@ func (c *Controller) syncHandler(key string) error {
 				Namespace:       p.Namespace,
 				OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
 			},
-			Data: cmData,
 		}
 
-		result, err := c.client.CoreV1().ConfigMaps(ns).Create(cm)
+		// Create the ConfigMap data based on the proxy configuration.
+		cmData, err := c.configMapDataForProxy(p)
 		if err != nil {
-			msg := fmt.Sprintf("failed to create configmap for %q: %v", key, err)
-			logging.PrintMulti(c.l.Error, map[logging.Level]string{
-				4: msg,
-				9: fmt.Sprintf("failed to create configmap for %q: %v: %#v", key, err, cm),
-			})
-			c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyConfigMapCreateReason, msg)
+			c.recordConfigMapEvent("create", p, cm, err)
+			return err
+		}
+		cm.Data = cmData
+
+		_, err = c.client.CoreV1().ConfigMaps(ns).Create(cm)
+		if err != nil {
+			c.recordConfigMapEvent("create", p, cm, err)
 			return err
 		}
 
-		msg := fmt.Sprintf("configmap %q created", result.Namespace+"/"+result.Name)
-		logging.PrintMulti(c.l.Info, map[logging.Level]string{
-			4: msg,
-			9: fmt.Sprintf("configmap %q created: %#v", result.Namespace+"/"+result.Name, result),
-		})
-		c.recorder.Event(p, corev1.EventTypeNormal, ProxyConfigMapCreateReason, msg)
+		c.recordConfigMapEvent("create", p, cm, nil)
 
 		return nil
 	}
@@ -300,13 +295,12 @@ func (c *Controller) syncHandler(key string) error {
 		c.l.Info.V(4).Printf("found multiple configmaps for %q", key)
 		toDelete := cmList[1:]
 		for _, m := range toDelete {
+			c.l.Info.V(4).Printf("deleting configmap %q", m.Namespace+"/"+m.Name)
 			err := c.client.CoreV1().ConfigMaps(ns).Delete(m.Name, nil)
 			if err != nil {
+				c.recordConfigMapEvent("delete", p, m, err)
 				return err
 			}
-			msg := fmt.Sprintf("deleting configmap %q", m.Namespace+"/"+m.Name)
-			c.l.Info.V(4).Print(msg)
-			c.recorder.Event(p, corev1.EventTypeWarning, DeleteConfigMapReason, msg)
 		}
 
 		cm = cmList[0]
@@ -317,27 +311,19 @@ func (c *Controller) syncHandler(key string) error {
 	// Create the ConfigMap based on the proxy configuration.
 	newData, err := c.configMapDataForProxy(p)
 	if err != nil {
+		c.recordConfigMapEvent("update", p, cm, err)
 		return err
 	}
 
 	if !reflect.DeepEqual(cm.Data, newData) {
 		cm.Data = newData
-		result, err := c.client.CoreV1().ConfigMaps(ns).Update(cm)
+		_, err = c.client.CoreV1().ConfigMaps(ns).Update(cm)
 		if err != nil {
-			msg := fmt.Sprintf("failed to update configmap for %q: %v", key, err)
-			logging.PrintMulti(c.l.Error, map[logging.Level]string{
-				4: msg,
-				9: fmt.Sprintf("failed to update configmap for %q: %v: %#v", key, err, cm),
-			})
-			c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyConfigMapUpdateReason, msg)
+			c.recordConfigMapEvent("update", p, cm, err)
 			return err
 		}
 
-		logging.PrintMulti(c.l.Info, map[logging.Level]string{
-			4: fmt.Sprintf("configmap %q updated", result.Namespace+"/"+result.Name),
-			9: fmt.Sprintf("configmap %q updated: %#v", result.Namespace+"/"+result.Name, result),
-		})
-
+		c.recordConfigMapEvent("update", p, cm, nil)
 	}
 
 	return nil

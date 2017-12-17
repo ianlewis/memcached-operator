@@ -107,7 +107,7 @@ func (c *Controller) poolForService(s *v1alpha1.ServiceSpec) (Pool, error) {
 	// Get the service
 	svc, err := c.sLister.Services(s.Namespace).Get(s.Name)
 	if err != nil {
-		return pool, fmt.Errorf("failed to get service %q: %v", s.Namespace+"/"+s.Name, err)
+		return pool, err
 	}
 
 	// Find the service port. We need to be able to resolve the service port by name.
@@ -133,7 +133,7 @@ func (c *Controller) poolForService(s *v1alpha1.ServiceSpec) (Pool, error) {
 	// Get the endpoints for the service
 	ep, err := c.epLister.Endpoints(svc.Namespace).Get(svc.Name)
 	if err != nil {
-		return pool, fmt.Errorf("failed to get endpoints %q: %v", svc.Namespace+"/"+svc.Name, err)
+		return pool, err
 	}
 
 	// Build the list of servers from the endpoints

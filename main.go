@@ -30,6 +30,7 @@ import (
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	v1beta1informers "k8s.io/client-go/informers/extensions/v1beta1"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -39,6 +40,7 @@ import (
 
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
+	memcachedscheme "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/scheme"
 	ianlewisorginformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxy"
 	"github.com/ianlewis/memcached-operator/pkg/controller/proxyconfigmap"
@@ -81,6 +83,10 @@ func main() {
 		glog.Infof("Received signal %s, exiting...", s)
 		cancel()
 	}()
+
+	// Register memcached-operator types to the default Kubernetes Scheme so that
+	// Events are logged properly.
+	memcachedscheme.AddToScheme(scheme.Scheme)
 
 	m := controllerutil.NewControllerManager("memcached-operator", client)
 

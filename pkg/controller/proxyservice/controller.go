@@ -17,6 +17,7 @@ package proxyservice
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/ianlewis/controllerutil/logging"
 
+	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorglisters "github.com/ianlewis/memcached-operator/pkg/client/listers/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller"
@@ -96,11 +98,21 @@ func New(
 		DeleteFunc: c.enqueue,
 	})
 
-	// TODO: watch services for changes and self-heal
+	// Watch services for changes and self-heal.
+	serviceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.enqueueOwned,
+		UpdateFunc: func(old, new interface{}) {
+			// Enqueue the old owner of the service as well as the new owner
+			c.enqueueOwned(old)
+			c.enqueueOwned(new)
+		},
+		DeleteFunc: c.enqueueOwned,
+	})
 
 	return c
 }
 
+// enqueue enqueues MemcachedProxy objects in the workqueue when it changes
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := KeyFunc(obj)
 	if err != nil {
@@ -108,6 +120,22 @@ func (c *Controller) enqueue(obj interface{}) {
 		return
 	}
 	c.queue.Add(key)
+}
+
+// enqueueOwned enqueues MemcachedProxy objects in the workqueue when one of
+// one of its owned objects changes
+func (c *Controller) enqueueOwned(obj interface{}) {
+	if o, ok := obj.(metav1.Object); ok {
+		owner := metav1.GetControllerOf(o)
+		if owner != nil {
+			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
+				// Enqueue the MemcachedProxy that owns this object
+				// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
+				// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
+				c.queue.Add(o.GetNamespace() + "/" + owner.Name)
+			}
+		}
+	}
 }
 
 func (c *Controller) Run(ctx context.Context) error {
@@ -167,6 +195,23 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 	return nil
 }
 
+func serviceSpecForProxy(p *v1alpha1.MemcachedProxy) corev1.ServiceSpec {
+	return corev1.ServiceSpec{
+		Selector: controller.GetProxyServiceSelector(p),
+		Type:     "ClusterIP",
+		Ports: []corev1.ServicePort{
+			corev1.ServicePort{
+				Name:     "memcached",
+				Protocol: "TCP",
+				Port:     *p.Spec.McRouter.Port,
+				TargetPort: intstr.IntOrString{
+					IntVal: *p.Spec.McRouter.Port,
+				},
+			},
+		},
+	}
+}
+
 func (c *Controller) syncHandler(key string) error {
 	startTime := time.Now()
 	c.l.Info.V(4).Printf("Started syncing %q (%v)", key, startTime)
@@ -219,46 +264,35 @@ func (c *Controller) syncHandler(key string) error {
 					Namespace:       ns,
 					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
 				},
-				Spec: corev1.ServiceSpec{
-					Selector: controller.GetProxyServiceSelector(p),
-					Type:     "ClusterIP",
-					Ports: []corev1.ServicePort{
-						corev1.ServicePort{
-							Name:     "memcached",
-							Protocol: "TCP",
-							Port:     *p.Spec.McRouter.Port,
-							TargetPort: intstr.IntOrString{
-								IntVal: *p.Spec.McRouter.Port,
-							},
-						},
-					},
-				},
+				Spec: serviceSpecForProxy(p),
 			}
 
-			result, err := c.client.CoreV1().Services(ns).Create(s)
+			_, err := c.client.CoreV1().Services(ns).Create(s)
 			if err != nil {
-				msg := fmt.Sprintf("failed to create service %q: %v", ns+"/"+sName, err)
-				logging.PrintMulti(c.l.Error, map[logging.Level]string{
-					4: msg,
-					9: fmt.Sprintf("failed to create service %q: %v: %#v", ns+"/"+sName, err, s),
-				})
-				c.recorder.Event(p, corev1.EventTypeWarning, FailedProxyServiceCreateReason, msg)
+				c.recordServiceEvent("create", p, s, err)
 				return err
 			}
 
-			msg := fmt.Sprintf("service %q created", ns+"/"+sName)
-			logging.PrintMulti(c.l.Info, map[logging.Level]string{
-				4: msg,
-				9: fmt.Sprintf("service %q created: %#v", ns+"/"+sName, result),
-			})
-			c.recorder.Event(p, corev1.EventTypeNormal, ProxyServiceCreateReason, msg)
+			c.recordServiceEvent("create", p, s, nil)
 		}
 
 		return err
 	}
 
-	// TODO: compare service to desired service and self-heal
+	// compare service to desired service and self-heal
+	// update service if changed
 	c.l.Info.V(4).Printf("found existing service %q", s.Namespace+"/"+s.Name)
+	serviceSpec := serviceSpecForProxy(p)
+	if !reflect.DeepEqual(s.Spec, serviceSpec) {
+		s.Spec = serviceSpec
+		_, err = c.client.CoreV1().Services(ns).Update(s)
+		if err != nil {
+			c.recordServiceEvent("update", p, s, err)
+			return err
+		}
+
+		c.recordServiceEvent("update", p, s, nil)
+	}
 
 	return nil
 }

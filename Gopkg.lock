@@ -205,10 +205,22 @@
   version = "v2.0.1"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
   revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
 
 [[projects]]
   branch = "master"
@@ -302,6 +314,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d8687c9d37fc49dcfa81c547b947c45ca158c1191da3b5d7d0abd61328aa5223"
+  inputs-digest = "4d7e1f0ee59ed386a5b2f8876ee091c5749550acf50b83bbfe176701ffb80f7c"
   solver-name = "gps-cdcl"
   solver-version = 1

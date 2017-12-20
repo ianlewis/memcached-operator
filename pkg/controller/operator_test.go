@@ -6,15 +6,30 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	// "k8s.io/client-go/kubernetes/fake"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+	v1beta1listers "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller"
 )
+
+func newDeploymentLister(deployments ...*v1beta1.Deployment) v1beta1listers.DeploymentLister {
+	indexer := cache.NewIndexer(
+		cache.DeletionHandlingMetaNamespaceKeyFunc,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
+	for _, d := range deployments {
+		indexer.Add(d)
+	}
+
+	return v1beta1listers.NewDeploymentLister(indexer)
+}
 
 func newConfigMapLister(cMaps ...*corev1.ConfigMap) corev1listers.ConfigMapLister {
 	indexer := cache.NewIndexer(
@@ -27,6 +42,90 @@ func newConfigMapLister(cMaps ...*corev1.ConfigMap) corev1listers.ConfigMapListe
 	}
 
 	return corev1listers.NewConfigMapLister(indexer)
+}
+
+// TestGetDeploymentsForProxy tests the GetDeploymentsForProxy function.
+func TestGetDeploymentsForProxy(t *testing.T) {
+	p := &v1alpha1.MemcachedProxy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hoge",
+			Namespace: metav1.NamespaceDefault,
+			UID:       uuid.NewUUID(),
+		},
+		Spec: v1alpha1.MemcachedProxySpec{
+			Rules: v1alpha1.RuleSpec{
+				Service: &v1alpha1.ServiceSpec{
+					Name: "fuga",
+				},
+			},
+		},
+	}
+
+	t.Run("returns single deployment", func(t *testing.T) {
+		dLister := newDeploymentLister(&v1beta1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "extensions/v1beta1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "hoge",
+				Namespace:       p.Namespace,
+				OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+			},
+		})
+
+		deployments, err := controller.GetDeploymentsForProxy(dLister, p)
+		if assert.NoError(t, err) {
+			assert.Len(t, deployments, 1, "1 deployment should be returned")
+		}
+	})
+
+	t.Run("returns only owned deployments", func(t *testing.T) {
+		dLister := newDeploymentLister(
+			&v1beta1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions/v1beta1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "hoge1",
+					Namespace:       p.Namespace,
+					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+				},
+			},
+			&v1beta1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions/v1beta1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "hoge2",
+					Namespace:       p.Namespace,
+					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+				},
+			},
+			&v1beta1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions/v1beta1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fuga1",
+					Namespace: p.Namespace,
+					// NOTE: this deployment is not owned
+					OwnerReferences: []metav1.OwnerReference{},
+				},
+			},
+		)
+
+		deployments, err := controller.GetDeploymentsForProxy(dLister, p)
+		if assert.NoError(t, err) {
+			assert.Len(t, deployments, 2, "2 deployments should be returned")
+			for _, d := range deployments {
+				assert.Condition(t, func() bool { return metav1.IsControlledBy(d, p) }, "deployment should be owned by memcached proxy")
+			}
+		}
+	})
 }
 
 // TestGetConfigMapsForProxy tests the GetConfigMapsForProxy function.

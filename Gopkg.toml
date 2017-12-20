@@ -22,3 +22,8 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "github.com/ianlewis/controllerutil"
   revision = "227243e4489e9d1d7efb0e7d0db2d62cde31698b"
+
+# testify's latest release is old. Use HEAD
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  branch = "master"

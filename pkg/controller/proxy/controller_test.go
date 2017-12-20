@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,12 +38,11 @@ import (
 )
 
 func getKey(o interface{}, t *testing.T) string {
-	if key, err := KeyFunc(o); err != nil {
-		t.Errorf("Unexpected error getting key for %v: %v", o, err)
-		return ""
-	} else {
-		return key
+	key, err := KeyFunc(o)
+	if !assert.NoError(t, err, "must be able to generate key for object") {
+		assert.FailNow(t, "failing early")
 	}
+	return key
 }
 
 func alwaysSynced() bool {
@@ -56,11 +57,10 @@ type expectedAction struct {
 }
 
 func (a *expectedAction) Check(t *testing.T, action core.Action) {
-	if !(a.action.Matches(action.GetVerb(), action.GetResource().Resource) &&
-		action.GetSubresource() == a.action.GetSubresource() &&
-		action.GetNamespace() == a.action.GetNamespace()) {
-		t.Errorf("Expected\n\t%#v\ngot\n\t%#v", a, action)
-	}
+	assert.Condition(t, func() bool { return a.action.Matches(action.GetVerb(), action.GetResource().Resource) }, "action must match")
+	assert.Equal(t, action.GetSubresource(), a.action.GetSubresource(), "action subresource must match")
+	assert.Equal(t, action.GetNamespace(), a.action.GetNamespace(), "action namespace must match")
+
 	if a.f != nil {
 		a.f(t, action)
 	}
@@ -80,7 +80,7 @@ type fixture struct {
 func expectActions(t *testing.T, actions []core.Action, expected []expectedAction) {
 	for i, action := range actions {
 		if len(expected) < i+1 {
-			t.Errorf("%d unexpected actions: %+v", len(actions)-len(expected), actions[i:])
+			assert.Failf(t, "unexpected actions", "%+v", actions[i:])
 			break
 		}
 
@@ -88,7 +88,7 @@ func expectActions(t *testing.T, actions []core.Action, expected []expectedActio
 	}
 
 	if len(expected) > len(actions) {
-		t.Errorf("%d additional expected actions: %+v", len(expected)-len(actions), expected[len(actions):])
+		assert.Failf(t, "additional expected actions", "%+v", expected[len(actions):])
 	}
 }
 
@@ -144,15 +144,11 @@ func (f *fixture) runSync(key string) {
 
 	go func() {
 		err := f.informers.Run(ctx)
-		if err != nil {
-			f.t.Fatalf("error returned from informers: %v", err)
-		}
+		assert.NoError(f.t, err, "informers must start successfully")
 	}()
 
 	err := f.controller.syncHandler(key)
-	if err != nil {
-		f.t.Errorf("error during sync: %#v", err)
-	}
+	assert.NoError(f.t, err, "syncHandler must complete successfully")
 }
 
 // TestNewProxy tests the handling of the memcached proxy controller when a new memcached proxy is created
@@ -182,18 +178,13 @@ func TestNewProxy(t *testing.T) {
 			func(t *testing.T, action core.Action) {
 				a := action.(core.UpdateAction)
 				pNew := a.GetObject().(*v1alpha1.MemcachedProxy)
-				// Check that the MemcachedProxy was initialized
-				if !pNew.Status.Initialized {
-					t.Errorf("memcached proxy not initalized: %#v", pNew)
-				}
+				assert.True(t, pNew.Status.Initialized, "memcached proxy must be initialized")
+
 				// Check that the default rule type was set
-				if pNew.Spec.Rules.Type != v1alpha1.ShardedRuleType {
-					t.Errorf("memcached proxy rule type %q != %q", pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType)
-				}
+				assert.Equal(t, pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType, "rules type must be equal")
+
 				// Check that the observed hash was set
-				if pNew.Status.ObservedSpecHash == "" {
-					t.Errorf("observed spec hash not set: %#v", pNew)
-				}
+				assert.NotEmpty(t, pNew.Status.ObservedSpecHash, "observed spec hash must be set")
 			},
 		},
 	})

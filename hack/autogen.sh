@@ -18,5 +18,5 @@
 #
 
 #!/bin/sh
-find . -path ./vendor -prune -o -path ./third_party -prune -o -type f \( -iname \*.go -o -iname \*.yaml -o -iname \*.sh \) -print0 | xargs -r -0 grep -Le "Copyright [0-9][0-9][0-9][0-9] Google LLC" | xargs -r -L1 third_party/autogen/autogen -c "Google LLC" -l apache2 --no-tlc -i
+find . -path ./vendor -prune -o -path ./third_party -prune -o -type f \( -iname \*.go -o -iname \*.yaml -o -iname \*.yml -o -iname \*.sh \) -print0 | xargs -r -0 grep -Le "Copyright [0-9][0-9][0-9][0-9] Google LLC" | xargs -r -L1 third_party/autogen/autogen -c "Google LLC" -l apache2 --no-tlc -i
 

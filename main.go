@@ -245,6 +245,8 @@ func main() {
 		)
 	})
 
+	// TODO: implement leader election for HA support
+
 	err = m.Run(ctx)
 
 	// Ensure cancel() is called to clean up.

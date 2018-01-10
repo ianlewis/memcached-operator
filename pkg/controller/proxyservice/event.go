@@ -31,7 +31,7 @@ func (c *Controller) recordServiceEvent(verb string, p *v1alpha1.MemcachedProxy,
 func (c *Controller) recordEvent(verb string, p *v1alpha1.MemcachedProxy, kind string, obj metav1.ObjectMetaAccessor, err error) {
 	if err == nil {
 		var msg string
-		reason := fmt.Sprintf("Successful%s%s", strings.Title(verb))
+		reason := fmt.Sprintf("Successful%s", strings.Title(verb))
 		if obj == nil {
 			msg = fmt.Sprintf("%s new %s for MemcachedProxy %q successful",
 				strings.ToLower(verb), kind, p.Name)

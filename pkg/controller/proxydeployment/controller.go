@@ -238,7 +238,7 @@ func (c *Controller) syncHandler(key string) error {
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
-							corev1.Container{
+							{
 								Name:    "mcrouter",
 								Image:   p.Spec.McRouter.Image,
 								Command: []string{"mcrouter"},
@@ -247,13 +247,13 @@ func (c *Controller) syncHandler(key string) error {
 									"--config-file=/etc/mcrouter/config.json",
 								},
 								Ports: []corev1.ContainerPort{
-									corev1.ContainerPort{
+									{
 										Name:          "mcrouter",
 										ContainerPort: *p.Spec.McRouter.Port,
 									},
 								},
 								VolumeMounts: []corev1.VolumeMount{
-									corev1.VolumeMount{
+									{
 										Name:      "config",
 										MountPath: "/etc/mcrouter",
 									},
@@ -261,7 +261,7 @@ func (c *Controller) syncHandler(key string) error {
 							},
 						},
 						Volumes: []corev1.Volume{
-							corev1.Volume{
+							{
 								Name: "config",
 								VolumeSource: corev1.VolumeSource{
 									ConfigMap: &corev1.ConfigMapVolumeSource{

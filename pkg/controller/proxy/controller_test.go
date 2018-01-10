@@ -173,7 +173,7 @@ func TestNewProxy(t *testing.T) {
 
 	actions := f.crdClient.Actions()
 	expectActions(t, actions, []expectedAction{
-		expectedAction{
+		{
 			core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
 			func(t *testing.T, action core.Action) {
 				a := action.(core.UpdateAction)

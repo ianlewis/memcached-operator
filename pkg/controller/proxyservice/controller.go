@@ -200,7 +200,7 @@ func serviceSpecForProxy(p *v1alpha1.MemcachedProxy) corev1.ServiceSpec {
 		Selector: controller.GetProxyServiceSelector(p),
 		Type:     "ClusterIP",
 		Ports: []corev1.ServicePort{
-			corev1.ServicePort{
+			{
 				Name:     "memcached",
 				Protocol: "TCP",
 				Port:     *p.Spec.McRouter.Port,

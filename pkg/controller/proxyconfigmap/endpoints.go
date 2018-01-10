@@ -124,7 +124,7 @@ func (c *Controller) addEndpoints(obj interface{}) {
 	}
 }
 
-// Update endpoint checks if there was a relavent change and then
+// Update endpoint checks if there was a relevant change and then
 // enqueues MemcachedProxy objects that reference services
 // that are associated with the endpoints object
 func (c *Controller) updateEndpoints(old, new interface{}) {

@@ -90,6 +90,8 @@ func New(
 		client:            client,
 		ianlewisorgClient: ianlewisorgClient,
 
+		namespace: namespace,
+
 		pLister:  ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
 		cmLister: corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
 		sLister:  corev1listers.NewServiceLister(serviceInformer.GetIndexer()),

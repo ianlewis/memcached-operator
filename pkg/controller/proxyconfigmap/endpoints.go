@@ -50,7 +50,7 @@ func (c *Controller) getAffectedProxies(ep *corev1.Endpoints) (sets.String, erro
 	return set, nil
 }
 
-// getAllProxyServices returns a map of memcached proxy to affected services. The
+// getAllProxyServiceSpecs returns a map of memcached proxy to affected services. The
 // key is a string key as used in the workqueue.
 func (c *Controller) getAllProxyServiceSpecs() (map[string][]*v1alpha1.ServiceSpec, error) {
 	// Only watch the namespace given to the controller constructor

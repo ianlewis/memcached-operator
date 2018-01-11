@@ -97,7 +97,7 @@ func (c *Controller) configForProxy(p *v1alpha1.MemcachedProxy) (*McRouterConfig
 
 // poolNameForService generates a unique pool name for each service and port combination
 func poolNameForServiceSpec(s *v1alpha1.ServiceSpec) string {
-	return controller.MakeName("", []string{s.Name, s.Port.String()})
+	return controller.MakeName("", []string{s.Name, s.Namespace, s.Port.String()})
 }
 
 // poolForService creates a mcroute pool for the given service spec.

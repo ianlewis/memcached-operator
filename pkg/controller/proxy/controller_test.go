@@ -45,10 +45,6 @@ func getKey(o interface{}, t *testing.T) string {
 	return key
 }
 
-func alwaysSynced() bool {
-	return true
-}
-
 // expectedAction is an action that is expected to occur and and optional
 // function with additional test code to be run for the action.
 type expectedAction struct {
@@ -126,8 +122,6 @@ func newFixture(t *testing.T, proxies ...*v1alpha1.MemcachedProxy) *fixture {
 		logging.New(""),
 		1,
 	)
-
-	c.pListerSynced = alwaysSynced
 
 	return &fixture{
 		t:          t,

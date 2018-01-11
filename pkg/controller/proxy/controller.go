@@ -42,8 +42,7 @@ type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
-	pLister       ianlewisorglisters.MemcachedProxyLister
-	pListerSynced cache.InformerSynced
+	pLister ianlewisorglisters.MemcachedProxyLister
 
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.

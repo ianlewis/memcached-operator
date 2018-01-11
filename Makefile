@@ -14,6 +14,13 @@ image: build
 	docker build --build-arg BUILD_DATE=$(shell date --iso-8601=minutes) --build-arg VCS_REF=$(shell git log -1 --oneline | awk '{ print $$1 }') --build-arg VERSION=$(VERSION) -t $(REGISTRY):v$(VERSION) .
 
 test:
+	$(eval NOHEADERS = $(shell find . -path ./vendor -prune -o -path ./third_party -prune -o -type f \( -iname \*.go -o -iname \*.yaml -o -iname \*.yml -o -iname \*.sh \) -print0 | xargs -r -0 grep -Le "Copyright [0-9][0-9][0-9][0-9] Google LLC"))
+	@true
+ifneq ($(NOHEADERS),)
+	@echo "License headers missing for files:"
+	@echo "$(NOHEADERS)"
+	@false
+endif
 	go test -v ./...
 
 clean:

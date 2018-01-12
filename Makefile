@@ -16,11 +16,11 @@ image: build
 test:
 	$(eval NOHEADERS = $(shell find . -path ./vendor -prune -o -path ./third_party -prune -o -type f \( -iname \*.go -o -iname \*.yaml -o -iname \*.yml -o -iname \*.sh \) -print0 | xargs -r -0 grep -Le "Copyright [0-9][0-9][0-9][0-9] Google LLC"))
 	@true
-ifneq ($(NOHEADERS),)
-	@echo "License headers missing for files:"
-	@echo "$(NOHEADERS)"
-	@false
-endif
+	@if [ "$(NOHEADERS)" != "" ]; then \
+		echo "License headers missing for files:"; \
+		echo $(NOHEADERS); \
+		false; \
+	fi
 	go test -v ./...
 
 clean:

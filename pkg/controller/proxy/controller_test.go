@@ -74,40 +74,45 @@ func (f *fixture) runSync(key string) {
 	assert.NoError(f.T, err, "syncHandler must complete successfully")
 }
 
-// TestNewProxy tests the handling of the memcached proxy controller when a new memcached proxy is created
-func TestNewProxy(t *testing.T) {
-	p := &v1alpha1.MemcachedProxy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "hoge",
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: v1alpha1.MemcachedProxySpec{
-			Rules: v1alpha1.RuleSpec{
-				Service: &v1alpha1.ServiceSpec{
-					Name: "fuga",
+// TestSync tests the handling of the memcached proxy
+// controller when a new memcached proxy events occur
+func TestSync(t *testing.T) {
+	t.Run("the new proxy should be updated", func(t *testing.T) {
+		// Create a raw MemcachedProxy object as it
+		// would be created via kubectl
+		p := &v1alpha1.MemcachedProxy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "hoge",
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: v1alpha1.MemcachedProxySpec{
+				Rules: v1alpha1.RuleSpec{
+					Service: &v1alpha1.ServiceSpec{
+						Name: "fuga",
+					},
 				},
 			},
-		},
-	}
+		}
 
-	f := newFixture(t, []*v1alpha1.MemcachedProxy{p})
+		f := newFixture(t, []*v1alpha1.MemcachedProxy{p})
 
-	f.runSync(getKey(p, t))
+		f.runSync(getKey(p, t))
 
-	f.ExpectCRDClientActions([]test.ExpectedAction{
-		{
-			core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
-			func(t *testing.T, action core.Action) {
-				a := action.(core.UpdateAction)
-				pNew := a.GetObject().(*v1alpha1.MemcachedProxy)
-				assert.True(t, pNew.Status.Initialized, "memcached proxy must be initialized")
+		f.ExpectCRDClientActions([]test.ExpectedAction{
+			{
+				core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
+				func(t *testing.T, action core.Action) {
+					a := action.(core.UpdateAction)
+					pNew := a.GetObject().(*v1alpha1.MemcachedProxy)
+					assert.True(t, pNew.Status.Initialized, "memcached proxy must be initialized")
 
-				// Check that the default rule type was set
-				assert.Equal(t, pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType, "rules type must be equal")
+					// Check that the default rule type was set
+					assert.Equal(t, pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType, "rules type must be equal")
 
-				// Check that the observed hash was set
-				assert.NotEmpty(t, pNew.Status.ObservedSpecHash, "observed spec hash must be set")
+					// Check that the observed hash was set
+					assert.NotEmpty(t, pNew.Status.ObservedSpecHash, "observed spec hash must be set")
+				},
 			},
-		},
+		})
 	})
 }

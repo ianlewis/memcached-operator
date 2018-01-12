@@ -26,9 +26,9 @@ import (
 
 // TestRouteForRule tests route creation for a MemcachedProxy rule spec
 func TestRouteForRule(t *testing.T) {
-	f := newFixture(t, nil, nil, nil, nil)
-
 	t.Run("sharded rule with service should be created correctly", func(t *testing.T) {
+		f := newFixture(t, nil, nil, nil, nil)
+
 		r := v1alpha1.RuleSpec{
 			Type: v1alpha1.ShardedRuleType,
 			Service: &v1alpha1.ServiceSpec{
@@ -48,6 +48,8 @@ func TestRouteForRule(t *testing.T) {
 	})
 
 	t.Run("sharded rule with children should be created correctly", func(t *testing.T) {
+		f := newFixture(t, nil, nil, nil, nil)
+
 		r := v1alpha1.RuleSpec{
 			Type: v1alpha1.ShardedRuleType,
 			Children: []v1alpha1.RuleSpec{
@@ -85,6 +87,8 @@ func TestRouteForRule(t *testing.T) {
 	})
 
 	t.Run("replicated rule with service should be created correctly", func(t *testing.T) {
+		f := newFixture(t, nil, nil, nil, nil)
+
 		r := v1alpha1.RuleSpec{
 			Type: v1alpha1.ReplicatedRuleType,
 			Service: &v1alpha1.ServiceSpec{
@@ -106,6 +110,8 @@ func TestRouteForRule(t *testing.T) {
 	})
 
 	t.Run("replicated rule with children should be created correctly", func(t *testing.T) {
+		f := newFixture(t, nil, nil, nil, nil)
+
 		r := v1alpha1.RuleSpec{
 			Type: v1alpha1.ReplicatedRuleType,
 			Children: []v1alpha1.RuleSpec{

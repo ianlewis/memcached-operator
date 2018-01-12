@@ -16,30 +16,33 @@ package test
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 )
 
-func newShardedProxy(name string, service string) *v1alpha1.MemcachedProxy {
-	return newMemcachedProxy(name, v1alpha1.RuleSpec{
+func NewShardedProxy(name string, service string) *v1alpha1.MemcachedProxy {
+	return NewMemcachedProxy(name, v1alpha1.RuleSpec{
 		Type: v1alpha1.ShardedRuleType,
 		Service: &v1alpha1.ServiceSpec{
 			Name: service,
+			Port: intstr.FromInt(11211),
 		},
 	})
 }
 
-func newReplicatedProxy(name string, service string) *v1alpha1.MemcachedProxy {
-	return newMemcachedProxy(name, v1alpha1.RuleSpec{
+func NewReplicatedProxy(name string, service string) *v1alpha1.MemcachedProxy {
+	return NewMemcachedProxy(name, v1alpha1.RuleSpec{
 		Type: v1alpha1.ReplicatedRuleType,
 		Service: &v1alpha1.ServiceSpec{
 			Name: service,
+			Port: intstr.FromInt(11211),
 		},
 	})
 }
 
-func newMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.MemcachedProxy {
+func NewMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.MemcachedProxy {
 	p := &v1alpha1.MemcachedProxy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.SchemeGroupVersion.String(),
@@ -56,6 +59,10 @@ func newMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.Memcached
 	}
 
 	p.ApplyDefaults()
+
+	hash, _ := p.Spec.GetHash()
+	p.Status.ObservedSpecHash = hash
+	p.Status.Initialized = true
 
 	return p
 }

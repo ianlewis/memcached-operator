@@ -15,10 +15,16 @@
 package proxyconfigmap
 
 import (
+	"context"
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/ianlewis/controllerutil/logging"
@@ -26,6 +32,14 @@ import (
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/test"
 )
+
+func getKey(o interface{}, t *testing.T) string {
+	key, err := KeyFunc(o)
+	if !assert.NoError(t, err, "must be able to generate key for object") {
+		assert.FailNow(t, "failing early")
+	}
+	return key
+}
 
 type fixture struct {
 	test.ClientFixture
@@ -68,4 +82,52 @@ func newFixture(
 	)
 
 	return &fixture{cf, c}
+}
+
+func (f *fixture) runSync(key string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		err := f.Informers.Run(ctx)
+		assert.NoError(f.T, err, "informers must start successfully")
+	}()
+
+	err := f.controller.syncHandler(key)
+	assert.NoError(f.T, err, "syncHandler must complete successfully")
+}
+
+// TestSync tests the handling of the memcached proxyconfigmap
+// controller when a new memcached proxy events occur
+func TestSync(t *testing.T) {
+	t.Run("a new configmap should be created", func(t *testing.T) {
+		p := test.NewShardedProxy("hoge", "fuga")
+		s, ep := test.NewMemcachedService("fuga")
+
+		f := newFixture(
+			t,
+			[]*v1alpha1.MemcachedProxy{p},
+			nil,
+			[]*corev1.Service{s},
+			[]*corev1.Endpoints{ep},
+		)
+
+		f.runSync(getKey(p, t))
+
+		cm := test.NewProxyConfigMap(p)
+
+		// Expect that a new ConfigMap was created
+		f.ExpectClientActions([]test.ExpectedAction{
+			{
+				core.NewCreateAction(schema.GroupVersionResource{Resource: "configmaps"}, cm.Namespace, cm), func(t *testing.T, action core.Action) {
+					a := action.(core.UpdateAction)
+					cmNew := a.GetObject().(*corev1.ConfigMap)
+					assert.Equal(t, cmNew.Name, "", "Name should be empty")
+					assert.Equal(t, cmNew.GenerateName, fmt.Sprintf("%s-config-", p.Name), "GenerateName should be set")
+					assert.Equal(t, cmNew.Namespace, p.Namespace, "Namespace should be set")
+					assert.True(t, metav1.IsControlledBy(cmNew, p), "owner reference should be set")
+				},
+			},
+		})
+	})
 }

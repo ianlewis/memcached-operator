@@ -35,7 +35,7 @@ import (
 
 // ClientFixture holds fake clients and informers
 type ClientFixture struct {
-	t         *testing.T
+	T         *testing.T
 	Client    *fake.Clientset
 	CRDClient *crdfake.Clientset
 
@@ -161,7 +161,7 @@ func NewClientFixture(
 	}
 
 	return ClientFixture{
-		t:         t,
+		T:         t,
 		Client:    client,
 		CRDClient: crdClient,
 

@@ -20,21 +20,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
-	"github.com/ianlewis/controllerutil/informers"
 	"github.com/ianlewis/controllerutil/logging"
 
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
-	crdfake "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/fake"
-	crdinformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
+	"github.com/ianlewis/memcached-operator/pkg/test"
 )
 
 func getKey(o interface{}, t *testing.T) string {
@@ -45,91 +39,26 @@ func getKey(o interface{}, t *testing.T) string {
 	return key
 }
 
-// expectedAction is an action that is expected to occur and and optional
-// function with additional test code to be run for the action.
-type expectedAction struct {
-	action core.Action
-	f      func(*testing.T, core.Action)
-}
-
-func (a *expectedAction) Check(t *testing.T, action core.Action) {
-	assert.Condition(t, func() bool { return a.action.Matches(action.GetVerb(), action.GetResource().Resource) }, "action must match")
-	assert.Equal(t, action.GetSubresource(), a.action.GetSubresource(), "action subresource must match")
-	assert.Equal(t, action.GetNamespace(), a.action.GetNamespace(), "action namespace must match")
-
-	if a.f != nil {
-		a.f(t, action)
-	}
-}
-
 type fixture struct {
-	t *testing.T
-
-	client    *fake.Clientset
-	crdClient *crdfake.Clientset
+	test.ClientFixture
 
 	controller *Controller
-	informers  informers.SharedInformers
 }
 
-// expectActions tests whether the actions given match the expected actions.
-func expectActions(t *testing.T, actions []core.Action, expected []expectedAction) {
-	for i, action := range actions {
-		if len(expected) < i+1 {
-			assert.Failf(t, "unexpected actions", "%+v", actions[i:])
-			break
-		}
-
-		expected[i].Check(t, action)
-	}
-
-	if len(expected) > len(actions) {
-		assert.Failf(t, "additional expected actions", "%+v", expected[len(actions):])
-	}
-}
-
-func newFixture(t *testing.T, proxies ...*v1alpha1.MemcachedProxy) *fixture {
-	objects := make([]runtime.Object, len(proxies))
-	for i, p := range proxies {
-		objects[i] = p
-	}
-
-	client := fake.NewSimpleClientset()
-	crdClient := crdfake.NewSimpleClientset(objects...)
-
-	informers := informers.NewSharedInformers()
-	proxyInformer := informers.InformerFor(
-		&v1alpha1.MemcachedProxy{},
-		func() cache.SharedIndexInformer {
-			return crdinformers.NewMemcachedProxyInformer(
-				crdClient,
-				corev1.NamespaceAll,
-				0,
-				cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-			)
-		},
-	)
-	for _, p := range proxies {
-		proxyInformer.GetIndexer().Add(p)
-	}
+func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy) *fixture {
+	cf := test.NewClientFixture(t, proxies, nil, nil, nil, nil)
 
 	c := New(
 		"test-proxy-controller",
-		client,
-		crdClient,
-		proxyInformer,
+		cf.Client,
+		cf.CRDClient,
+		cf.MemcachedProxyInformer,
 		&record.FakeRecorder{},
 		logging.New(""),
 		1,
 	)
 
-	return &fixture{
-		t:          t,
-		client:     client,
-		crdClient:  crdClient,
-		controller: c,
-		informers:  informers,
-	}
+	return &fixture{cf, c}
 }
 
 func (f *fixture) runSync(key string) {
@@ -137,12 +66,12 @@ func (f *fixture) runSync(key string) {
 	defer cancel()
 
 	go func() {
-		err := f.informers.Run(ctx)
-		assert.NoError(f.t, err, "informers must start successfully")
+		err := f.Informers.Run(ctx)
+		assert.NoError(f.T, err, "informers must start successfully")
 	}()
 
 	err := f.controller.syncHandler(key)
-	assert.NoError(f.t, err, "syncHandler must complete successfully")
+	assert.NoError(f.T, err, "syncHandler must complete successfully")
 }
 
 // TestNewProxy tests the handling of the memcached proxy controller when a new memcached proxy is created
@@ -161,12 +90,11 @@ func TestNewProxy(t *testing.T) {
 		},
 	}
 
-	f := newFixture(t, p)
+	f := newFixture(t, []*v1alpha1.MemcachedProxy{p})
 
 	f.runSync(getKey(p, t))
 
-	actions := f.crdClient.Actions()
-	expectActions(t, actions, []expectedAction{
+	f.ExpectCRDClientActions([]test.ExpectedAction{
 		{
 			core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
 			func(t *testing.T, action core.Action) {

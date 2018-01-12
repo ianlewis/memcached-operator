@@ -25,17 +25,17 @@ import (
 // ExpectedAction is an action that is expected to occur and and optional
 // function with additional test code to be run for the action.
 type ExpectedAction struct {
-	action core.Action
-	f      func(*testing.T, core.Action)
+	Action core.Action
+	F      func(*testing.T, core.Action)
 }
 
 func (a *ExpectedAction) Check(t *testing.T, action core.Action) {
-	assert.Condition(t, func() bool { return a.action.Matches(action.GetVerb(), action.GetResource().Resource) }, "action must match")
-	assert.Equal(t, action.GetSubresource(), a.action.GetSubresource(), "action subresource must match")
-	assert.Equal(t, action.GetNamespace(), a.action.GetNamespace(), "action namespace must match")
+	assert.Condition(t, func() bool { return a.Action.Matches(action.GetVerb(), action.GetResource().Resource) }, "action must match")
+	assert.Equal(t, action.GetSubresource(), a.Action.GetSubresource(), "action subresource must match")
+	assert.Equal(t, action.GetNamespace(), a.Action.GetNamespace(), "action namespace must match")
 
-	if a.f != nil {
-		a.f(t, action)
+	if a.F != nil {
+		a.F(t, action)
 	}
 }
 
@@ -46,21 +46,21 @@ func (f *ClientFixture) ExpectClientActions(expected []ExpectedAction) {
 
 // ExpectCRDClientActions tests where actions on the CRD client match the expected actions
 func (f *ClientFixture) ExpectCRDClientActions(expected []ExpectedAction) {
-	f.expectActions(f.Client.Actions(), expected)
+	f.expectActions(f.CRDClient.Actions(), expected)
 }
 
 // expectActions tests whether the actions given match the expected actions.
 func (f *ClientFixture) expectActions(actions []core.Action, expected []ExpectedAction) {
 	for i, action := range actions {
 		if len(expected) < i+1 {
-			assert.Failf(f.t, "unexpected actions", "%+v", actions[i:])
+			assert.Failf(f.T, "unexpected actions", "%+v", actions[i:])
 			break
 		}
 
-		expected[i].Check(f.t, action)
+		expected[i].Check(f.T, action)
 	}
 
 	if len(expected) > len(actions) {
-		assert.Failf(f.t, "additional expected actions", "%+v", expected[len(actions):])
+		assert.Failf(f.T, "additional expected actions", "%+v", expected[len(actions):])
 	}
 }

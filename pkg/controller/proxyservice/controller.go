@@ -195,21 +195,23 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 	return nil
 }
 
-func serviceSpecForProxy(p *v1alpha1.MemcachedProxy) corev1.ServiceSpec {
-	return corev1.ServiceSpec{
-		Selector: controller.GetProxyServiceSelector(p),
-		Type:     "ClusterIP",
-		Ports: []corev1.ServicePort{
-			{
-				Name:     "memcached",
-				Protocol: "TCP",
-				Port:     *p.Spec.McRouter.Port,
-				TargetPort: intstr.IntOrString{
-					IntVal: *p.Spec.McRouter.Port,
-				},
-			},
-		},
+// Updates a service if it has changed from the desired state
+// Returns true if the service has been updated
+func updateService(p *v1alpha1.MemcachedProxy, s *corev1.Service) bool {
+	returnVal := false
+
+	// Only check individual fields on the service spec rather than
+	// checking the entire service spec because some fields, like clusterIP,
+	// are updated by the API server and are immutable.
+
+	// Check the selector
+	desiredSelector := controller.GetProxyServiceSelector(p)
+	if !reflect.DeepEqual(s.Spec.Selector, desiredSelector) {
+		s.Spec.Selector = desiredSelector
+		returnVal = true
 	}
+
+	return returnVal
 }
 
 func (c *Controller) syncHandler(key string) error {
@@ -264,7 +266,20 @@ func (c *Controller) syncHandler(key string) error {
 					Namespace:       ns,
 					OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
 				},
-				Spec: serviceSpecForProxy(p),
+				Spec: corev1.ServiceSpec{
+					Selector: controller.GetProxyServiceSelector(p),
+					Type:     "ClusterIP",
+					Ports: []corev1.ServicePort{
+						{
+							Name:     "memcached",
+							Protocol: "TCP",
+							Port:     *p.Spec.McRouter.Port,
+							TargetPort: intstr.IntOrString{
+								IntVal: *p.Spec.McRouter.Port,
+							},
+						},
+					},
+				},
 			}
 
 			_, err := c.client.CoreV1().Services(ns).Create(s)
@@ -282,9 +297,7 @@ func (c *Controller) syncHandler(key string) error {
 	// compare service to desired service and self-heal
 	// update service if changed
 	c.l.Info.V(4).Printf("found existing service %q", s.Namespace+"/"+s.Name)
-	serviceSpec := serviceSpecForProxy(p)
-	if !reflect.DeepEqual(s.Spec, serviceSpec) {
-		s.Spec = serviceSpec
+	if updateService(p, s) {
 		_, err = c.client.CoreV1().Services(ns).Update(s)
 		if err != nil {
 			c.recordServiceEvent("update", p, s, err)

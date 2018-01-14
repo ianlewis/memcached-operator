@@ -19,7 +19,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 )
@@ -146,5 +149,129 @@ func TestRouteForRule(t *testing.T) {
 
 		assert.Equal(t, route.Route.OperationPolicies.Delete.Route.Type, "LatestRoute")
 		assert.Len(t, route.Route.OperationPolicies.Delete.Route.Children, 2)
+	})
+}
+
+// TestPoolForService tests the poolForService controller method
+func TestPoolForService(t *testing.T) {
+	t.Run("service with multiple ports should use correct mapped port", func(t *testing.T) {
+		// Create the MemcachedProxy
+		// The proxy references port 1000 on service "fuga".
+		// That maps to port 11211 on the service so memcached-operator
+		// should pick the endpoints for that port.
+		p := &v1alpha1.MemcachedProxy{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: v1alpha1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				UID:         uuid.NewUUID(),
+				Name:        "hoge",
+				Namespace:   metav1.NamespaceDefault,
+				Annotations: make(map[string]string),
+			},
+			Spec: v1alpha1.MemcachedProxySpec{
+				Rules: v1alpha1.RuleSpec{
+					Type: v1alpha1.ReplicatedRuleType,
+					Service: &v1alpha1.ServiceSpec{
+						Name: "fuga",
+						Port: intstr.FromInt(1000),
+					},
+				},
+			},
+		}
+
+		p.ApplyDefaults()
+
+		hash, _ := p.Spec.GetHash()
+		p.Status.ObservedSpecHash = hash
+		p.Status.Initialized = true
+
+		// Create the service "fuga". This service has two ports.
+		// Port 1000 maps to 11211 on target pods.
+		s := &corev1.Service{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: corev1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				UID:         uuid.NewUUID(),
+				Name:        "fuga",
+				Namespace:   metav1.NamespaceDefault,
+				Annotations: make(map[string]string),
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: map[string]string{
+					"app": "memcached",
+				},
+				Type: "ClusterIP",
+				Ports: []corev1.ServicePort{
+					{
+						Name:       "memcached",
+						Protocol:   "TCP",
+						Port:       1000,
+						TargetPort: intstr.FromInt(11211),
+					},
+					{
+						Name:       "other",
+						Protocol:   "TCP",
+						Port:       8080,
+						TargetPort: intstr.FromInt(8081),
+					},
+				},
+			},
+		}
+
+		ep := &corev1.Endpoints{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: corev1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				UID:         uuid.NewUUID(),
+				Name:        "fuga",
+				Namespace:   metav1.NamespaceDefault,
+				Annotations: make(map[string]string),
+			},
+			Subsets: []corev1.EndpointSubset{
+				{
+					Addresses: []corev1.EndpointAddress{
+						{
+							IP: "123.123.123.123",
+							// NOTE: omitting targetref & nodename
+						},
+						{
+							IP: "123.123.123.124",
+							// NOTE: omitting targetref & nodename
+						},
+					},
+					Ports: []corev1.EndpointPort{
+						{
+							Name:     "memcached",
+							Protocol: "TCP",
+							Port:     11211,
+						},
+						{
+							Name:     "other",
+							Protocol: "TCP",
+							Port:     8081,
+						},
+					},
+				},
+			},
+		}
+
+		f := newFixture(
+			t,
+			[]*v1alpha1.MemcachedProxy{p},
+			nil,
+			[]*corev1.Service{s},
+			[]*corev1.Endpoints{ep},
+		)
+
+		pool, err := f.controller.poolForService(p.Spec.Rules.Service)
+		if !assert.NoError(t, err, "must be able to generate pool") {
+			assert.FailNow(t, "failing early")
+		}
+
+		// Check that the right target port was chosen.
+		assert.Equal(t, []string{"123.123.123.123:11211", "123.123.123.124:11211"}, pool.Servers)
 	})
 }

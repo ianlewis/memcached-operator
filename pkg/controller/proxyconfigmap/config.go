@@ -144,7 +144,7 @@ func (c *Controller) poolForService(s *v1alpha1.ServiceSpec) (Pool, error) {
 		for _, eport := range subset.Ports {
 			if portMatches(eport, port.TargetPort) {
 				for _, addr := range subset.Addresses {
-					pool.Servers = append(pool.Servers, addr.IP+":"+fmt.Sprint(port.Port))
+					pool.Servers = append(pool.Servers, addr.IP+":"+fmt.Sprint(eport.Port))
 				}
 			}
 		}

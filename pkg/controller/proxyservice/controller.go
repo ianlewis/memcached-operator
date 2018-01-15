@@ -271,7 +271,7 @@ func (c *Controller) syncHandler(key string) error {
 					Type:     "ClusterIP",
 					Ports: []corev1.ServicePort{
 						{
-							Name:     "memcached",
+							Name:     "mcrouter",
 							Protocol: "TCP",
 							Port:     *p.Spec.McRouter.Port,
 							TargetPort: intstr.IntOrString{
@@ -289,6 +289,8 @@ func (c *Controller) syncHandler(key string) error {
 			}
 
 			c.recordServiceEvent("create", p, s, nil)
+
+			return nil
 		}
 
 		return err

@@ -120,7 +120,7 @@ func TestSync(t *testing.T) {
 		f.ExpectClientActions([]test.ExpectedAction{
 			{
 				core.NewCreateAction(schema.GroupVersionResource{Resource: "configmaps"}, cm.Namespace, cm), func(t *testing.T, action core.Action) {
-					a := action.(core.UpdateAction)
+					a := action.(core.CreateAction)
 					cmNew := a.GetObject().(*corev1.ConfigMap)
 					assert.Equal(t, cmNew.Name, "", "Name should be empty")
 					assert.Equal(t, cmNew.GenerateName, fmt.Sprintf("%s-config-", p.Name), "GenerateName should be set")

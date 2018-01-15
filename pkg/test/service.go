@@ -15,10 +15,15 @@
 package test
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
+
+	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
+	"github.com/ianlewis/memcached-operator/pkg/controller"
 )
 
 func NewMemcachedService(name string) (*corev1.Service, *corev1.Endpoints) {
@@ -61,4 +66,35 @@ func NewMemcachedService(name string) (*corev1.Service, *corev1.Endpoints) {
 	}
 
 	return s, ep
+}
+
+func NewMemcachedProxyService(p *v1alpha1.MemcachedProxy) *corev1.Service {
+	s := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			UID:         uuid.NewUUID(),
+			Name:        fmt.Sprintf("%s-memcached", p.Name),
+			Namespace:   metav1.NamespaceDefault,
+			Annotations: make(map[string]string),
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")),
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: controller.GetProxyServiceSelector(p),
+			Type:     "ClusterIP",
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "mcrouter",
+					Protocol:   "TCP",
+					Port:       11211,
+					TargetPort: intstr.FromInt(11211),
+				},
+			},
+		},
+	}
+
+	return s
 }

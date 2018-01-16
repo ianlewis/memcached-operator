@@ -78,7 +78,8 @@ func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, services []*co
 // TestSyncHandler tests the functionality of the proxyservice
 // controller's syncHandler method
 func TestSyncHandler(t *testing.T) {
-	// Tests whether a service is created when an new MemcachedProxy is created.
+	// Tests whether a service is created when a new MemcachedProxy
+	// is created.
 	t.Run("a new service should be created", func(t *testing.T) {
 		p := test.NewShardedProxy("hoge", "fuga")
 		f := newFixture(t, []*v1alpha1.MemcachedProxy{p}, nil)

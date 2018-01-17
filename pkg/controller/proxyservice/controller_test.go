@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
@@ -90,7 +91,20 @@ func TestSyncHandler(t *testing.T) {
 		f.ExpectClientActions([]test.ExpectedAction{
 			{
 				core.NewCreateAction(schema.GroupVersionResource{Resource: "services"}, s.Namespace, s),
-				nil,
+				func(t *testing.T, action core.Action) {
+					a := action.(core.CreateAction)
+					sNew := a.GetObject().(*corev1.Service)
+
+					assert.True(t, metav1.IsControlledBy(sNew, p), "owner reference should be set")
+
+					// Check that port is set properly
+					assert.Equal(t, sNew.Spec.Ports[0].Port,
+						*p.Spec.McRouter.Port, "service port must be set from proxy")
+
+					// Check that port is set properly
+					assert.Equal(t, sNew.Spec.Ports[0].TargetPort.IntVal,
+						*p.Spec.McRouter.Port, "target port must be set from proxy")
+				},
 			},
 		})
 	})

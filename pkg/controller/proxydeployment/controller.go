@@ -32,6 +32,7 @@ import (
 
 	"github.com/ianlewis/controllerutil/logging"
 
+	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorglisters "github.com/ianlewis/memcached-operator/pkg/client/listers/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller"
@@ -100,6 +101,19 @@ func New(
 		DeleteFunc: c.enqueue,
 	})
 
+	// Watch for configmap changes so that the deployment is created properly
+	// once the required configmap is created.
+
+	configmapInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.enqueueOwned,
+		UpdateFunc: func(old, new interface{}) {
+			// Enqueue the old owner of the service as well as the new owner
+			c.enqueueOwned(old)
+			c.enqueueOwned(new)
+		},
+		DeleteFunc: c.enqueueOwned,
+	})
+
 	// TODO: watch deployments for changes and self-heal
 
 	return c
@@ -112,6 +126,22 @@ func (c *Controller) enqueue(obj interface{}) {
 		return
 	}
 	c.queue.Add(key)
+}
+
+// enqueueOwned enqueues MemcachedProxy objects in the workqueue when one of
+// one of its owned objects changes
+func (c *Controller) enqueueOwned(obj interface{}) {
+	if o, ok := obj.(metav1.Object); ok {
+		owner := metav1.GetControllerOf(o)
+		if owner != nil {
+			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
+				// Enqueue the MemcachedProxy that owns this object
+				// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
+				// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
+				c.queue.Add(o.GetNamespace() + "/" + owner.Name)
+			}
+		}
+	}
 }
 
 func (c *Controller) Run(ctx context.Context) error {

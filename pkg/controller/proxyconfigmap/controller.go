@@ -277,7 +277,7 @@ func (c *Controller) syncHandler(key string) error {
 		}
 		cm.Data = cmData
 
-		_, err = c.client.CoreV1().ConfigMaps(ns).Create(cm)
+		cm, err = c.client.CoreV1().ConfigMaps(ns).Create(cm)
 		if err != nil {
 			c.recordConfigMapEvent("create", p, cm, err)
 			return err

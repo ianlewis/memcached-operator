@@ -75,7 +75,7 @@ type McRouterSpec struct {
 
 func (s *McRouterSpec) ApplyDefaults(p *MemcachedProxy) {
 	if s.Image == "" {
-		s.Image = "jphalip/mcrouter:0.36.0"
+		s.Image = "ianmlewis/mcrouter:v0.36.0-0"
 	}
 	if s.Port == nil {
 		port := int32(11211)

@@ -77,6 +77,12 @@ You can build a fully statically linked binary as well:
 [//]: # (TODO: Include dependencies for running tests for vendored libraries in vendor)
 [//]: # (TODO: Create end-to-end tests and instructions)
 
+# Similar projects
+
+- [mcrouter-kubernetes-provisioner](https://github.com/mlaccetti/mcrouter-kubernetes-provisioner)
+- [KubeStack memcached operator](https://github.com/kbst/memcached)
+- [KubeDB memcached operator](https://github.com/kubedb/memcached)
+
 ## Disclaimers
 
 This is not an official Google product

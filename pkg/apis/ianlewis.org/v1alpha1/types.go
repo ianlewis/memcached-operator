@@ -68,9 +68,12 @@ func (s *MemcachedProxySpec) GetHash() (string, error) {
 }
 
 type McRouterSpec struct {
-	Image     string                      `json:"image,omitempty"`
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-	Port      *int32                      `json:"port,omitempty"`
+	Image           string                      `json:"image,omitempty"`
+	Resources       corev1.ResourceRequirements `json:"resources,omitempty"`
+	Port            *int32                      `json:"port,omitempty"`
+	SecurityContext *corev1.SecurityContext     `json:"securityContext,omitempty"`
+	// StatsRoot is the directory for storing stats files (--stats-root)
+	StatsRoot string `json:"statsRoot,omitempty"`
 }
 
 func (s *McRouterSpec) ApplyDefaults(p *MemcachedProxy) {
@@ -80,6 +83,19 @@ func (s *McRouterSpec) ApplyDefaults(p *MemcachedProxy) {
 	if s.Port == nil {
 		port := int32(11211)
 		s.Port = &port
+	}
+	if s.StatsRoot == "" {
+		s.StatsRoot = "/var/mcrouter/stats"
+	}
+	if s.SecurityContext == nil {
+		nonRoot := true
+		readOnly := true
+		s.SecurityContext = &corev1.SecurityContext{
+			// Verify that the container runs as a non-root user but defer to
+			// the image metadata to determine which user to actually run as.
+			RunAsNonRoot:           &nonRoot,
+			ReadOnlyRootFilesystem: &readOnly,
+		}
 	}
 }
 
@@ -124,13 +140,8 @@ type MemcachedProxyStatus struct {
 	// This is a workaround for the fact that Generation and sub-resources are not fully supported for CRDs yet.
 	// We assume that end users will not update the status object and especially this field.
 	ObservedSpecHash string `json:"observedSpecHash,omitempty"`
-	// TODO: updated replicas in status
+	// TODO: updated replicas in status?
 	// Replicas int32 `json:"replicas,omitempty"`
-
-	// Initialized indicates that the object has been initialized
-	// by the controller and it's default values set.
-	// TODO: Use initializers to set defaults (>1.9): https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers
-	Initialized bool `json:"initialized,omitempty"`
 
 	// TODO: Determine other status fields (ready? stats from mcrouter?)
 }

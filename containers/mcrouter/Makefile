@@ -1,7 +1,7 @@
 REGISTRY := ianmlewis
 
 MCROUTER_VERSION := 0.36.0
-MCROUTER_REV := 0
+MCROUTER_REV := 1
 
 .PHONY: image test clean mcrouter
 

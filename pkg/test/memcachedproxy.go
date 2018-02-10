@@ -62,7 +62,6 @@ func NewMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.Memcached
 
 	hash, _ := p.Spec.GetHash()
 	p.Status.ObservedSpecHash = hash
-	p.Status.Initialized = true
 
 	return p
 }

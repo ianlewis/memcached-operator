@@ -275,6 +275,9 @@ func (c *Controller) syncHandler(key string) error {
 								Args: []string{
 									"-p", fmt.Sprint(*p.Spec.McRouter.Port),
 									"--config-file=/etc/mcrouter/config.json",
+									// Disable the async delete log because we won't persist state
+									"--asynclog-disable",
+									fmt.Sprintf("--stats-root=%s", p.Spec.McRouter.StatsRoot),
 								},
 								Ports: []corev1.ContainerPort{
 									{
@@ -287,7 +290,12 @@ func (c *Controller) syncHandler(key string) error {
 										Name:      "config",
 										MountPath: "/etc/mcrouter",
 									},
+									{
+										Name:      "stats",
+										MountPath: p.Spec.McRouter.StatsRoot,
+									},
 								},
+								SecurityContext: p.Spec.McRouter.SecurityContext,
 							},
 						},
 						Volumes: []corev1.Volume{
@@ -299,6 +307,12 @@ func (c *Controller) syncHandler(key string) error {
 											Name: cm.Name,
 										},
 									},
+								},
+							},
+							{
+								Name: "stats",
+								VolumeSource: corev1.VolumeSource{
+									EmptyDir: &corev1.EmptyDirVolumeSource{},
 								},
 							},
 						},

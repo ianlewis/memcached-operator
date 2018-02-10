@@ -186,9 +186,9 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	pCopy := p.DeepCopy()
-	if !pCopy.Status.Initialized {
-		pCopy.ApplyDefaults()
-	}
+	// call ApplyDefaults every time since new fields may have been added
+	pCopy.ApplyDefaults()
+
 	if err := c.updateStatus(pCopy); err != nil {
 		return fmt.Errorf("failed to update status for %q: %v", key, err)
 	}
@@ -213,6 +213,5 @@ func (c *Controller) updateStatus(p *v1alpha1.MemcachedProxy) error {
 		return fmt.Errorf("failed to hash spec for %q: %v", p.Namespace+"/"+p.Name, err)
 	}
 	p.Status.ObservedSpecHash = hash
-	p.Status.Initialized = true
 	return nil
 }

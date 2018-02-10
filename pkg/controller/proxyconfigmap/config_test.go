@@ -184,7 +184,6 @@ func TestPoolForService(t *testing.T) {
 
 		hash, _ := p.Spec.GetHash()
 		p.Status.ObservedSpecHash = hash
-		p.Status.Initialized = true
 
 		// Create the service "fuga". This service has two ports.
 		// Port 1000 maps to 11211 on target pods.

@@ -104,7 +104,6 @@ func TestSync(t *testing.T) {
 				func(t *testing.T, action core.Action) {
 					a := action.(core.UpdateAction)
 					pNew := a.GetObject().(*v1alpha1.MemcachedProxy)
-					assert.True(t, pNew.Status.Initialized, "memcached proxy must be initialized")
 
 					// Check that the default rule type was set
 					assert.Equal(t, pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType, "rules type must be equal")

@@ -57,7 +57,7 @@ func (s *MemcachedProxySpec) ApplyDefaults(p *MemcachedProxy) {
 	s.Rules.ApplyDefaults(p)
 }
 
-// UpdateHash updates the
+// GetHash gets a hash of the MemcachedProxySpec
 func (s *MemcachedProxySpec) GetHash() (string, error) {
 	hash, err := hashstructure.Hash(s, nil)
 	if err != nil {

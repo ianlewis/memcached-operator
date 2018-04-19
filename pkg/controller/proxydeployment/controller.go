@@ -17,6 +17,7 @@ package proxydeployment
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -103,7 +104,6 @@ func New(
 
 	// Watch for configmap changes so that the deployment is created properly
 	// once the required configmap is created.
-
 	configmapInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.enqueueOwned,
 		UpdateFunc: func(old, new interface{}) {
@@ -114,7 +114,16 @@ func New(
 		DeleteFunc: c.enqueueOwned,
 	})
 
-	// TODO: watch deployments for changes and self-heal
+	// Watch deployments for changes and self-heal
+	deploymentInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.enqueueOwned,
+		UpdateFunc: func(old, new interface{}) {
+			// Enqueue the old owner of the service as well as the new owner
+			c.enqueueOwned(old)
+			c.enqueueOwned(new)
+		},
+		DeleteFunc: c.enqueueOwned,
+	})
 
 	return c
 }
@@ -243,127 +252,161 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get deployments for %q: %v", key, err)
 	}
-	if len(dList) == 0 {
-		c.l.Info.V(4).Printf("creating deployment for %q", key)
 
-		cm, err := controller.GetConfigMapForProxy(c.cmLister, p)
+	switch {
+	case len(dList) == 0:
+		c.l.Info.V(4).Printf("creating deployment for %q", key)
+		return c.createDeployment(p)
+	case len(dList) == 1:
+		c.l.Info.V(4).Printf("updating deployment for %q", key)
+		return c.updateDeployment(p, dList[0])
+	default:
+		// More than one Deployment found. This is an error. Try to recover by removing the older ones.
+		c.l.Info.V(4).Printf("found multiple deployments for %q", key)
+
+		// Multiple deployments were found so clean up unnecessary deployments
+		// Sort by the creation timestamp (in reverse order) and delete all but the newest
+		sort.Slice(dList, func(i, j int) bool {
+			return dList[j].CreationTimestamp.UTC().Before(dList[i].CreationTimestamp.UTC())
+		})
+
+		err := c.deleteDeployments(p, dList[1:])
 		if err != nil {
 			return err
 		}
 
-		// Create the deployment
-		replicas := int32(1)
-		d := &v1beta1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "",
-				GenerateName:    fmt.Sprintf("%s-mcrouter-", p.Name),
-				Namespace:       p.Namespace,
-				OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
-			},
-			Spec: v1beta1.DeploymentSpec{
-				Replicas: &replicas,
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: controller.GetProxyServiceSelector(p),
+		return fmt.Errorf("Found multiple deployments for %q. Requeueing...", key)
+	}
+}
+
+// createDeployment creates a mcrouter Deployment for the given MemcachedProxy
+func (c *Controller) createDeployment(p *v1alpha1.MemcachedProxy) error {
+	cm, err := controller.GetConfigMapForProxy(c.cmLister, p)
+	if err != nil {
+		return err
+	}
+	if cm == nil {
+		return fmt.Errorf("no configmap for %q", p.Namespace+"/"+p.Name)
+	}
+
+	// Create the deployment
+	// TODO: Allow control of replica count
+	replicas := int32(1)
+	d := &v1beta1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "",
+			GenerateName:    fmt.Sprintf("%s-mcrouter-", p.Name),
+			Namespace:       p.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+		},
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: controller.GetProxyServiceSelector(p),
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    "mcrouter",
+							Image:   p.Spec.McRouter.Image,
+							Command: []string{"mcrouter"},
+							Args: []string{
+								"-p", fmt.Sprint(*p.Spec.McRouter.Port),
+								"--config-file=/etc/mcrouter/config.json",
+								// Disable the async delete log because we won't persist state
+								"--asynclog-disable",
+								fmt.Sprintf("--stats-root=%s", p.Spec.McRouter.StatsRoot),
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "mcrouter",
+									ContainerPort: *p.Spec.McRouter.Port,
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "config",
+									MountPath: "/etc/mcrouter",
+								},
+								{
+									Name:      "stats",
+									MountPath: p.Spec.McRouter.StatsRoot,
+								},
+							},
+							SecurityContext: p.Spec.McRouter.SecurityContext,
+						},
 					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:    "mcrouter",
-								Image:   p.Spec.McRouter.Image,
-								Command: []string{"mcrouter"},
-								Args: []string{
-									"-p", fmt.Sprint(*p.Spec.McRouter.Port),
-									"--config-file=/etc/mcrouter/config.json",
-									// Disable the async delete log because we won't persist state
-									"--asynclog-disable",
-									fmt.Sprintf("--stats-root=%s", p.Spec.McRouter.StatsRoot),
-								},
-								Ports: []corev1.ContainerPort{
-									{
-										Name:          "mcrouter",
-										ContainerPort: *p.Spec.McRouter.Port,
+					Volumes: []corev1.Volume{
+						{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: cm.Name,
 									},
 								},
-								VolumeMounts: []corev1.VolumeMount{
-									{
-										Name:      "config",
-										MountPath: "/etc/mcrouter",
-									},
-									{
-										Name:      "stats",
-										MountPath: p.Spec.McRouter.StatsRoot,
-									},
-								},
-								SecurityContext: p.Spec.McRouter.SecurityContext,
 							},
 						},
-						Volumes: []corev1.Volume{
-							{
-								Name: "config",
-								VolumeSource: corev1.VolumeSource{
-									ConfigMap: &corev1.ConfigMapVolumeSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: cm.Name,
-										},
-									},
-								},
-							},
-							{
-								Name: "stats",
-								VolumeSource: corev1.VolumeSource{
-									EmptyDir: &corev1.EmptyDirVolumeSource{},
-								},
+						{
+							Name: "stats",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
 					},
 				},
 			},
+		},
+	}
+
+	result, err := c.client.ExtensionsV1beta1().Deployments(p.Namespace).Create(d)
+	if err != nil {
+		msg := fmt.Sprintf("failed to create deployment for %q: %v", p.Namespace+"/"+p.Name, err)
+		c.recorder.Event(p, corev1.EventTypeWarning, FailedDeploymentCreateReason, msg)
+		return fmt.Errorf(msg)
+	}
+
+	msg := fmt.Sprintf("deployment %q created", result.Namespace+"/"+result.Name)
+	c.recorder.Event(p, corev1.EventTypeNormal, DeploymentCreateReason, msg)
+
+	return nil
+}
+
+// updateDeployment updates the existing deployment to reflect the desired state
+func (c *Controller) updateDeployment(p *v1alpha1.MemcachedProxy, d *v1beta1.Deployment) error {
+	cm, err := controller.GetConfigMapForProxy(c.cmLister, p)
+	if err != nil {
+		return err
+	}
+	if cm != nil {
+		// Update the ConfigMap name to the right name.
+		// TODO: Make this more flexible.
+		d.Spec.Template.Spec.Volumes[0].VolumeSource.ConfigMap.LocalObjectReference.Name = cm.Name
+
+		result, err := c.client.ExtensionsV1beta1().Deployments(d.Namespace).Update(d)
+		if err != nil {
+			msg := fmt.Sprintf("failed to update deployment for %q: %v", p.Namespace+"/"+p.Name, err)
+			c.recorder.Event(p, corev1.EventTypeWarning, FailedDeploymentUpdateReason, msg)
+			return fmt.Errorf(msg)
 		}
 
-		result, err := c.client.ExtensionsV1beta1().Deployments(ns).Create(d)
+		msg := fmt.Sprintf("deployment %q updated", result.Namespace+"/"+result.Name)
+		c.recorder.Event(p, corev1.EventTypeNormal, DeploymentUpdateReason, msg)
+	}
+	return nil
+}
+
+// deleteDeployments deletes all deployments in the given list
+func (c *Controller) deleteDeployments(p *v1alpha1.MemcachedProxy, dList []*v1beta1.Deployment) error {
+	for _, d := range dList {
+		err := c.client.ExtensionsV1beta1().Deployments(d.Namespace).Delete(d.Name, nil)
 		if err != nil {
-			msg := fmt.Sprintf("failed to create depoyment for %q: %v", key, err)
-			logging.PrintMulti(c.l.Error, map[logging.Level]string{
-				4: msg,
-				9: fmt.Sprintf("failed to create deployment for %q: %v: %#v", key, err, d),
-			})
-			c.recorder.Event(p, corev1.EventTypeWarning, FailedDeploymentCreateReason, msg)
 			return err
 		}
-
-		msg := fmt.Sprintf("deployment %q created", result.Namespace+"/"+result.Name)
-		logging.PrintMulti(c.l.Info, map[logging.Level]string{
-			4: msg,
-			9: fmt.Sprintf("deployment %q created: %#v", result.Namespace+"/"+result.Name, result),
-		})
-		c.recorder.Event(p, corev1.EventTypeNormal, DeploymentCreateReason, msg)
-
-		return nil
+		msg := fmt.Sprintf("deleted deployment %q", d.Namespace+"/"+d.Name)
+		c.l.Info.V(4).Print(msg)
+		c.recorder.Event(p, corev1.EventTypeWarning, DeleteDeploymentReason, msg)
 	}
-
-	var d *v1beta1.Deployment
-	if len(dList) == 1 {
-		d = dList[0]
-	} else {
-		// Multiple deployments were found so clean up unnecessary deployments
-		c.l.Info.V(4).Printf("found multiple deployments for %q", key)
-		toDelete := dList[1:]
-		for _, m := range toDelete {
-			err := c.client.ExtensionsV1beta1().Deployments(ns).Delete(m.Name, nil)
-			if err != nil {
-				return err
-			}
-			msg := fmt.Sprintf("deleting deployment %q", m.Namespace+"/"+m.Name)
-			c.l.Info.V(4).Print(msg)
-			c.recorder.Event(p, corev1.EventTypeWarning, DeleteDeploymentReason, msg)
-		}
-
-		d = dList[0]
-	}
-
-	// TODO: compare deployment to desired deployment self-heal
-	c.l.Info.V(4).Printf("found existing deployment%q", d.Namespace+"/"+d.Name)
-
 	return nil
 }

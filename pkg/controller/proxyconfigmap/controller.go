@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -53,6 +54,8 @@ type Controller struct {
 	namespace string
 
 	pLister  ianlewisorglisters.MemcachedProxyLister
+	dLister  appsv1listers.DeploymentLister
+	rsLister appsv1listers.ReplicaSetLister
 	cmLister corev1listers.ConfigMapLister
 	sLister  corev1listers.ServiceLister
 	epLister corev1listers.EndpointsLister
@@ -80,9 +83,10 @@ func New(
 	namespace string,
 	proxyInformer cache.SharedIndexInformer,
 	configMapInformer cache.SharedIndexInformer,
+	deploymentInformer cache.SharedIndexInformer,
+	replicasetInformer cache.SharedIndexInformer,
 	serviceInformer cache.SharedIndexInformer,
 	endpointsInformer cache.SharedIndexInformer,
-	// TODO: replicaset informer
 	recorder record.EventRecorder,
 	logger *logging.Logger,
 	workers int,
@@ -95,6 +99,8 @@ func New(
 
 		pLister:  ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
 		cmLister: corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
+		dLister:  appsv1listers.NewDeploymentLister(deploymentInformer.GetIndexer()),
+		rsLister: appsv1listers.NewReplicaSetLister(replicasetInformer.GetIndexer()),
 		sLister:  corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
 		epLister: corev1listers.NewEndpointsLister(endpointsInformer.GetIndexer()),
 
@@ -297,7 +303,11 @@ func (c *Controller) syncHandler(key string) error {
 			}
 		}
 		// The ConfigMap exists already.
-		// TODO: Check if it is the ConfigMap currently applied to the deployment. If not update the configmap with ownerrefernce pointing to the memcachedproxy to indicate it is new.
+		// Check if it is the configmap currently applied to the deployment. If not update the configmap with an ownerref pointing to the memcachedproxy to indicate it is new.
+		// d, _, err := controller.GetDeploymentsForProxy(c.dLister, p)
+		// if err != nil {
+		// 	return fmt.Errorf("failed to get deployments for %q: %v", key, err)
+		// }
 	case 1:
 		// There is only one new configmap.
 		// TODO: Check if a replicaset has been created for the configmap. If so update the ownerref to point to the replicaset.

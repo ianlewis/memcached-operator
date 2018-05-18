@@ -16,31 +16,42 @@ package controller
 
 import (
 	"fmt"
+	"sort"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
-	v1beta1listers "k8s.io/client-go/listers/extensions/v1beta1"
 
 	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
 )
 
-// GetDeploymentsForProxy returns all configmaps owned by the proxy
-func GetDeploymentsForProxy(dLister v1beta1listers.DeploymentLister, p *v1alpha1.MemcachedProxy) ([]*v1beta1.Deployment, error) {
+// GetDeploymentsForProxy returns the deployment for the given proxy as well as a list of any other deployments owned by the proxy. Under normal circumstances this list is empty.
+func GetDeploymentsForProxy(dLister appsv1listers.DeploymentLister, p *v1alpha1.MemcachedProxy) (*appsv1.Deployment, []*appsv1.Deployment, error) {
 	dList, err := dLister.Deployments(p.Namespace).List(labels.Everything())
 	if err != nil {
-		return nil, err
+		return nil, []*appsv1.Deployment{}, nil
 	}
 
-	var result []*v1beta1.Deployment
+	var result []*appsv1.Deployment
 	for _, d := range dList {
 		if metav1.IsControlledBy(d, p) {
 			result = append(result, d)
 		}
 	}
-	return result, nil
+
+	// Sort deployments by creation timestamp in reverse order.
+	sort.Slice(result, func(i, j int) bool {
+		return result[j].CreationTimestamp.UTC().Before(result[i].CreationTimestamp.UTC())
+	})
+
+	if len(result) == 0 {
+		return nil, []*appsv1.Deployment{}, nil
+	}
+
+	return result[0], result[1:], nil
 }
 
 // GetConfigMapForProxy returns the configmap owned by the proxy or an error if multiple are found.

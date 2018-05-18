@@ -66,7 +66,7 @@ func GetConfigMapForProxy(cmLister corev1listers.ConfigMapLister, p *v1alpha1.Me
 	}
 
 	if len(cmList) == 0 {
-		return nil, fmt.Errorf("configmap for %q not found", p.Namespace+"/"+p.Name)
+		return nil, nil
 	}
 
 	return cmList[0], nil

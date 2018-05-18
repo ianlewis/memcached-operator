@@ -280,7 +280,7 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-// deploymentForProxy creates a deployment object for the given proxy
+// deploymentForProxy creates a new deployment object for the given proxy. This method expects a new configmap to be available
 func (c *Controller) deploymentForProxy(p *v1alpha1.MemcachedProxy) (*appsv1.Deployment, error) {
 	cm, err := controller.GetConfigMapForProxy(c.cmLister, p)
 	if err != nil {
@@ -393,6 +393,11 @@ func (c *Controller) updateDeployment(p *v1alpha1.MemcachedProxy, d *appsv1.Depl
 	if err != nil {
 		return err
 	}
+	if cm == nil {
+		// There is no new configmap for the proxy so no updated is needed
+		return nil
+	}
+
 	// Updated the deployment with the name of the newest configmap
 	for _, v := range d.Spec.Template.Spec.Volumes {
 		if v.Name == "config" {

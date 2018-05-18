@@ -337,6 +337,9 @@ func (c *Controller) syncHandler(key string) error {
 				return err
 			}
 		}
+
+		// Requeue in case any new cluster changes happened in addition to a replicaset being created
+		c.queue.AddRateLimited(key)
 	case 1:
 		// There is only one new configmap.
 		// Check if a replicaset has been created for the configmap. If so update the ownerref to point to the replicaset.
@@ -355,11 +358,17 @@ func (c *Controller) syncHandler(key string) error {
 			}
 			c.recordConfigMapEvent("update", p, cm, nil)
 		}
+
+		// Requeue in case any new cluster changes happened in addition to a replicaset being created
+		c.queue.AddRateLimited(key)
 	default:
 		// There are more than one new configmaps. This shouldn't happen but we should try to recover.
 		// TODO: Delete any configmaps with only one ownerref pointing to the memcachedproxy. Remove ownerrefs to the memcachedproxy for configmaps with other ownerrefs.
 		c.l.Error.Printf("More than one new configmap found for %q", key)
 	}
+
+	// TODO: Support configmap reuse
+	// If the config returns to a previous value a previous configmap will be reused and will have ownerrefs to >1 replicasets
 
 	return nil
 }

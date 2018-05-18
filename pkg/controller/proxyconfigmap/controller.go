@@ -131,39 +131,36 @@ func New(
 		DeleteFunc: c.deleteEndpoints,
 	})
 
-	// Add an event handler for replicasets for when new replicasets are added so we can change
-	// the ownerrefs of the configmaps
-	// TODO: maybe watch for changes in the deployment instead since it should update it's status when replicasets change?
-	replicasetInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: c.enqueueRSProxy,
+	// Add an event handler for deployments to catch when new replicasets
+	// are added etc. This is ok because deployment controller updates
+	// the deployment's status thus we can observe changes at the deployment
+	// level.
+	deploymentInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.enqueueOwned,
 		UpdateFunc: func(old, new interface{}) {
-			c.enqueueRSProxy(new)
+			// Enqueue the old owner and new owner. Usually they will be the
+			// same but just in case the owners change we want to be able to
+			// work properly.
+			c.enqueueOwned(old)
+			c.enqueueOwned(new)
 		},
-		DeleteFunc: c.enqueueRSProxy,
+		DeleteFunc: c.enqueueOwned,
 	})
 
 	return c
 }
 
-// Enqueues the MemcachedProxy that ultimately controls this object
-func (c *Controller) enqueueRSProxy(obj interface{}) {
-	// FIXME: This will do individual gets on each deployment per replicaset that changes. This is not ideal from a performance standpoint.
+// enqueueOwned enqueues MemcachedProxy objects in the workqueue when one of
+// one of its owned objects changes
+func (c *Controller) enqueueOwned(obj interface{}) {
 	if o, ok := obj.(metav1.Object); ok {
 		owner := metav1.GetControllerOf(o)
 		if owner != nil {
-			d, err := c.dLister.Deployments(o.GetNamespace()).Get(owner.Name)
-			if err != nil {
-				c.l.Error.Printf("failed to get deployment for replicaset \"%s/%s\": %v", o.GetNamespace(), o.GetName(), err)
-				return
-			}
-			owner := metav1.GetControllerOf(d)
-			if owner != nil {
-				if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
-					// Enqueue the MemcachedProxy that owns this object
-					// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
-					// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
-					c.queue.Add(o.GetNamespace() + "/" + owner.Name)
-				}
+			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
+				// Enqueue the MemcachedProxy that owns this object
+				// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
+				// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
+				c.queue.Add(o.GetNamespace() + "/" + owner.Name)
 			}
 		}
 	}
@@ -344,47 +341,37 @@ func (c *Controller) syncHandler(key string) error {
 		// There is only one new configmap.
 		// Check if a replicaset has been created for the configmap. If so update the ownerref to point to the replicaset.
 		cm := cmList[0]
-		err := c.applyOwnerRefToCM(p, cm)
+		applied, err := c.applyOwnerRefToCM(p, cm)
 		if err != nil {
 			return fmt.Errorf("failed to apply ownerrefs to configmap for %q: %v", key, err)
 		}
-		c.removeProxyOwnerRef(p, cm)
 
-		// Update the configmap to the api server
-		cm, err = c.client.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
-		if err != nil {
-			c.recordConfigMapEvent("update", p, cm, err)
-			return fmt.Errorf("failed to update configmaps for %q: %v", key, err)
+		if applied {
+			// Update the configmap to the api server
+			cm, err = c.client.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
+			if err != nil {
+				c.recordConfigMapEvent("update", p, cm, err)
+				return fmt.Errorf("failed to update configmaps for %q: %v", key, err)
+			}
+			c.recordConfigMapEvent("update", p, cm, nil)
 		}
-		c.recordConfigMapEvent("update", p, cm, nil)
-
 	default:
 		// There are more than one new configmaps. This shouldn't happen but we should try to recover.
 		// TODO: Delete any configmaps with only one ownerref pointing to the memcachedproxy. Remove ownerrefs to the memcachedproxy for configmaps with other ownerrefs.
+		c.l.Error.Printf("More than one new configmap found for %q", key)
 	}
 
 	return nil
 }
 
-// removeProxyOwnerRef removes the ownerreference pointing to the memcachedproxy from the configmap
-func (c *Controller) removeProxyOwnerRef(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) {
-	// Remove ownerreferences to the memcachedproxy
-	ownerRefs := []metav1.OwnerReference{}
-	for _, ref := range cm.OwnerReferences {
-		// Add all but references to the memcachedproxy
-		if ref.UID != p.GetUID() {
-			ownerRefs = append(ownerRefs, ref)
-		}
-	}
-	cm.OwnerReferences = ownerRefs
-}
-
 // applyOwnerRefToCM applies owner references to the configmap for each replicaset owned by the given memcachedproxy whose podspec references the configmap. Ownerreferences to the memcachedproxy are removed.
-func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) error {
+func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) (bool, error) {
+	applied := false
+
 	// Add ownerref to replicasets
 	rsList, err := c.getRSForProxy(p, cm)
 	if err != nil {
-		return err
+		return applied, err
 	}
 	for _, rs := range rsList {
 		// Ignore replicasets that already own this configmap
@@ -394,11 +381,26 @@ func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.Co
 					// The replicaset references the configmap
 					// Apply an ownerreference
 					cm.OwnerReferences = append(cm.OwnerReferences, *ownerref.NewOwnerRef(rs, replicaSetType))
+					applied = true
 				}
 			}
 		}
 	}
-	return nil
+
+	// Only remove the proxy ownerref if the replicaset ownerref was applied so we don't get into a state
+	// where the configmap has zero ownerrefs
+	if applied {
+		ownerRefs := []metav1.OwnerReference{}
+		for _, ref := range cm.OwnerReferences {
+			// Add all but references to the memcachedproxy
+			if ref.UID != p.GetUID() {
+				ownerRefs = append(ownerRefs, ref)
+			}
+		}
+		cm.OwnerReferences = ownerRefs
+	}
+
+	return applied, nil
 }
 
 // getRSForProxy retrieves all replicasets that are owned by the memcachedproxy (via a deployment)

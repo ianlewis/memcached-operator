@@ -45,11 +45,12 @@ const (
 	// to one container of a pod.
 	SeccompContainerAnnotationKeyPrefix string = "container.seccomp.security.alpha.kubernetes.io/"
 
-	// CreatedByAnnotation represents the key used to store the spec(json)
-	// used to create the resource.
-	// This field is deprecated in favor of ControllerRef (see #44407).
-	// TODO(#50720): Remove this field in v1.9.
-	CreatedByAnnotation = "kubernetes.io/created-by"
+	// SeccompProfileRuntimeDefault represents the default seccomp profile used by container runtime.
+	SeccompProfileRuntimeDefault string = "runtime/default"
+
+	// DeprecatedSeccompProfileDockerDefault represents the default seccomp profile used by docker.
+	// This is now deprecated and should be replaced by SeccompProfileRuntimeDefault.
+	DeprecatedSeccompProfileDockerDefault string = "docker/default"
 
 	// PreferAvoidPodsAnnotationKey represents the key of preferAvoidPods data (json serialized)
 	// in the Annotations of a Node.

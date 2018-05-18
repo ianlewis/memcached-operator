@@ -21,12 +21,12 @@ import (
 )
 
 func ExampleLogger_V() {
-	l := logging.NewInfoLogger("[hoge] ")
-	l.V(4).Printf("Info message: %s", "other message")
+	l := logging.New("[hoge] ")
+	l.Info.V(4).Printf("Info message: %s", "other message")
 }
 
 func ExampleNewErrorLogger() {
-	l := logging.NewErrorLogger("[hoge] ")
+	l := logging.New("[hoge] ")
 	err := fmt.Errorf("some error")
-	l.Printf("Error message: %v", err)
+	l.Error.Printf("Error message: %v", err)
 }

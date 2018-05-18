@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +35,7 @@ import (
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorglisters "github.com/ianlewis/memcached-operator/pkg/client/listers/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller"
+	"github.com/ianlewis/memcached-operator/pkg/util/hash"
 )
 
 var (
@@ -82,6 +82,7 @@ func New(
 	configMapInformer cache.SharedIndexInformer,
 	serviceInformer cache.SharedIndexInformer,
 	endpointsInformer cache.SharedIndexInformer,
+	// TODO: replicaset informer
 	recorder record.EventRecorder,
 	logger *logging.Logger,
 	workers int,
@@ -120,8 +121,6 @@ func New(
 		UpdateFunc: c.updateEndpoints,
 		DeleteFunc: c.deleteEndpoints,
 	})
-
-	// TODO: Watch configmap for changes and self-heal
 
 	return c
 }
@@ -192,8 +191,8 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 	return nil
 }
 
-// configMapDataForProxy renders the mcrouter configmap data
-func (c *Controller) configMapDataForProxy(p *v1alpha1.MemcachedProxy) (map[string]string, error) {
+// configMapForProxy gets a configmap based on state of pods in referenced memcached clusters.
+func (c *Controller) configMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.ConfigMap, error) {
 	// Render config file
 	config, err := c.configForProxy(p)
 	if err != nil {
@@ -203,12 +202,30 @@ func (c *Controller) configMapDataForProxy(p *v1alpha1.MemcachedProxy) (map[stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to create render config.json: %v", err)
 	}
-
 	data := map[string]string{
 		"config.json": string(configJSON),
 	}
 
-	return data, nil
+	hash, err := hash.GetHash(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hash for config: %v", err)
+	}
+
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			// Generate a new unique name on the API server side
+			Name:            fmt.Sprintf("%s-config-%s", p.Name, hash),
+			Namespace:       p.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
+		},
+		Data: data,
+	}
+
+	return cm, nil
 }
 
 func (c *Controller) syncHandler(key string) error {
@@ -248,84 +265,45 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
+	// Process configmaps that are new (ownerreference pointing to the memcachedproxy)
 	cmList, err := controller.GetConfigMapsForProxy(c.cmLister, p)
 	if err != nil {
 		return fmt.Errorf("failed to get configmaps for %q: %v", key, err)
 	}
-	if len(cmList) == 0 {
-		c.l.Info.V(4).Printf("Creating configmap for %q", key)
-
-		cm := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				// Generate a new unique name on the API server side
-				Name:            "",
-				GenerateName:    fmt.Sprintf("%s-config-", p.Name),
-				Namespace:       p.Namespace,
-				OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
-			},
-		}
-
-		// Create the ConfigMap data based on the proxy configuration.
-		cmData, err := c.configMapDataForProxy(p)
+	switch len(cmList) {
+	case 0:
+		// There are no new configmaps. Check if a new one needs to be created.
+		cm, err := c.configMapForProxy(p)
 		if err != nil {
-			c.recordConfigMapEvent("create", p, cm, err)
+			c.recordEvent("create", p, "ConfigMap", nil, err)
 			return err
 		}
-		cm.Data = cmData
-
-		cm, err = c.client.CoreV1().ConfigMaps(ns).Create(cm)
+		_, err = c.cmLister.ConfigMaps(p.Namespace).Get(cm.Name)
 		if err != nil {
-			c.recordConfigMapEvent("create", p, cm, err)
-			return err
-		}
+			if errors.IsNotFound(err) {
+				// The ConfigMap doesn't exist and needs to be created.
+				c.l.Info.V(4).Printf("Creating configmap for %q", key)
 
-		c.recordConfigMapEvent("create", p, cm, nil)
+				cm, err = c.client.CoreV1().ConfigMaps(ns).Create(cm)
+				if err != nil {
+					c.recordConfigMapEvent("create", p, cm, err)
+					return err
+				}
 
-		return nil
-	}
-
-	// Existing configmaps were found. Get one configmap and delete any others.
-	var cm *corev1.ConfigMap
-	if len(cmList) == 1 {
-		cm = cmList[0]
-	} else {
-		// Multiple configmaps were found so clean up unnecessary configmaps
-		c.l.Info.V(4).Printf("found multiple configmaps for %q", key)
-		toDelete := cmList[1:]
-		for _, m := range toDelete {
-			c.l.Info.V(4).Printf("deleting configmap %q", m.Namespace+"/"+m.Name)
-			err := c.client.CoreV1().ConfigMaps(ns).Delete(m.Name, nil)
-			if err != nil {
-				c.recordConfigMapEvent("delete", p, m, err)
+				c.recordConfigMapEvent("create", p, cm, nil)
+			} else {
+				// Some other kind of error occurred.
 				return err
 			}
 		}
-
-		cm = cmList[0]
-	}
-
-	// Update configmap if changed
-	c.l.Info.V(4).Printf("found existing configmap %q", cm.Namespace+"/"+cm.Name)
-	// Create the ConfigMap based on the proxy configuration.
-	newData, err := c.configMapDataForProxy(p)
-	if err != nil {
-		c.recordConfigMapEvent("update", p, cm, err)
-		return err
-	}
-
-	if !reflect.DeepEqual(cm.Data, newData) {
-		cm.Data = newData
-		_, err = c.client.CoreV1().ConfigMaps(ns).Update(cm)
-		if err != nil {
-			c.recordConfigMapEvent("update", p, cm, err)
-			return err
-		}
-
-		c.recordConfigMapEvent("update", p, cm, nil)
+		// The ConfigMap exists already.
+		// TODO: Check if it is the ConfigMap currently applied to the deployment. If not update the configmap with ownerrefernce pointing to the memcachedproxy to indicate it is new.
+	case 1:
+		// There is only one new configmap.
+		// TODO: Check if a replicaset has been created for the configmap. If so update the ownerref to point to the replicaset.
+	default:
+		// There are more than one new configmaps. This shouldn't happen but we should try to recover.
+		// TODO: Delete any configmaps with only one ownerref pointing to the memcachedproxy. Remove ownerrefs to the memcachedproxy for configmaps with other ownerrefs.
 	}
 
 	return nil

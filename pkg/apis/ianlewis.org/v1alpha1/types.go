@@ -15,13 +15,11 @@
 package v1alpha1
 
 import (
-	"strconv"
-
-	"github.com/mitchellh/hashstructure"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/ianlewis/memcached-operator/pkg/util/hash"
 )
 
 const (
@@ -59,12 +57,7 @@ func (s *MemcachedProxySpec) ApplyDefaults(p *MemcachedProxy) {
 
 // GetHash gets a hash of the MemcachedProxySpec
 func (s *MemcachedProxySpec) GetHash() (string, error) {
-	hash, err := hashstructure.Hash(s, nil)
-	if err != nil {
-		return "", err
-	}
-	// Return hex format.
-	return strconv.FormatUint(hash, 16), nil
+	return hash.GetHash(s)
 }
 
 type McRouterSpec struct {

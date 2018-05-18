@@ -39,9 +39,9 @@ var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
-// Controller represents a memcached proxy config map controller that
-// watches MemcachedProxy objects and creates a ConfigMap used to
-// configure mcrouter.
+// Controller manages the lifecycle of configmaps for deployments watched by the
+// given deployment informer. New configmaps created with an ownerreference to
+// a watched deployment.
 type Controller struct {
 	client clientset.Interface
 
@@ -64,7 +64,7 @@ type Controller struct {
 	l *logging.Logger
 }
 
-// New creates a new memcached proxy configmap controller
+// New creates a new deployment configmap controller.
 func New(
 	name string,
 	client clientset.Interface,

@@ -17,9 +17,9 @@ package informers_test
 import (
 	"time"
 
-	extensions_v1beta1 "k8s.io/api/extensions/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1beta1_informer "k8s.io/client-go/informers/extensions/v1beta1"
+	appsv1_informers "k8s.io/client-go/informers/apps/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -33,14 +33,9 @@ func ExampleSharedInformers() {
 
 	i := informers.NewSharedInformers()
 	i.InformerFor(
-		metav1.NamespaceAll,
-		metav1.GroupVersionKind{
-			Group:   extensions_v1beta1.SchemeGroupVersion.Group,
-			Version: extensions_v1beta1.SchemeGroupVersion.Version,
-			Kind:    "Deployment",
-		},
+		&appsv1.Deployment{},
 		func() cache.SharedIndexInformer {
-			return v1beta1_informer.NewDeploymentInformer(
+			return appsv1_informers.NewDeploymentInformer(
 				client,
 				metav1.NamespaceAll,
 				12*time.Hour,

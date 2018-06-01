@@ -315,18 +315,18 @@ func (c *Controller) syncHandler(key string) error {
 	switch len(cmList) {
 	case 0:
 		// There are no new configmaps. Check if a new one needs to be created.
-		cm, err := c.configMapForProxy(p)
+		cmNew, err := c.configMapForProxy(p)
 		if err != nil {
 			c.recordEvent("create", p, "ConfigMap", nil, err)
 			return err
 		}
-		cm, err = c.cmLister.ConfigMaps(p.Namespace).Get(cm.Name)
+		cm, err := c.cmLister.ConfigMaps(p.Namespace).Get(cmNew.Name)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// The ConfigMap doesn't exist and needs to be created.
 				c.l.Info.V(4).Printf("Creating configmap for %q", key)
 
-				cm, err = c.client.CoreV1().ConfigMaps(ns).Create(cm)
+				cm, err = c.client.CoreV1().ConfigMaps(ns).Create(cmNew)
 				if err != nil {
 					c.recordConfigMapEvent("create", p, cm, err)
 					return err
@@ -344,21 +344,14 @@ func (c *Controller) syncHandler(key string) error {
 			}
 		}
 
-		// A configmap exists with a name that matches a hash of the current cluster state but is not referenced by the
-		// current replicaset for the deployment. This happens when cluster state returns to a state that was seen
-		// previously. Here we will reuse the existing configmap by adding and ownerref to the memcachedproxy. It will,
-		// however, retain it's previous ownerref to it's previous replicaset.
-
-		// TODO: check if configmap is for the latest replicaset or an older replicaset. Only apply the new ownerref if it's not the current replicaset.
-		cm.SetOwnerReferences(append(cm.GetOwnerReferences(), *metav1.NewControllerRef(p, memcachedProxyType)))
-
-		// Update the configmap to the api server
-		cm, err = c.client.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
-		if err != nil {
-			c.recordConfigMapEvent("update", p, cm, err)
-			return fmt.Errorf("failed to update configmaps for %q: %v", key, err)
+		// A configmap exists with a name that matches a hash of the current cluster state.
+		// This is either because it is the latest configmap or because the cluster state
+		// has returned to a state that was seen previously. Here we will reuse the existing
+		// configmap by adding and ownerref to the memcachedproxy. It will, however, retain
+		// it's previous ownerref to it's previous replicaset.
+		if err := c.reuseConfigMap(p, cm); err != nil {
+			return err
 		}
-		c.recordConfigMapEvent("update", p, cm, nil)
 
 		// Don't need to requeue because we have to wait for a replicaset to be created by the deployment controller.
 	case 1:
@@ -372,6 +365,7 @@ func (c *Controller) syncHandler(key string) error {
 
 		if applied {
 			// Update the configmap to the api server
+			c.l.Info.V(4).Printf("remove proxy ownerref %q %v", cm.Name, cm.GetOwnerReferences())
 			cm, err = c.client.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
 			if err != nil {
 				c.recordConfigMapEvent("update", p, cm, err)
@@ -382,12 +376,49 @@ func (c *Controller) syncHandler(key string) error {
 			// Requeue in case any new cluster changes happened in addition to a replicaset being created
 			c.queue.AddRateLimited(key)
 		}
-
 	default:
 		// There are more than one new configmaps. This shouldn't happen but we should try to recover.
 		// TODO: Delete any configmaps with only one ownerref pointing to the memcachedproxy. Remove ownerrefs to the memcachedproxy for configmaps with other ownerrefs.
 		c.l.Error.Printf("More than one new configmap found for %q", key)
 	}
+
+	return nil
+}
+
+// reuseConfigMap reuses an existing configmap. It first checks if the ConfigMap is not the
+// latest version of and if it isn't then it updates the ConfigMap with a ownerref pointing
+// to the MemcachedProxy
+func (c *Controller) reuseConfigMap(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) error {
+	// Only update the ConfigMap if the ConfigMap is not the latest ConfigMap version.
+	// Check the deployment's podspec to see if it references the ConfigMap. If it does
+	// then the ConfigMap is the latest
+	isLatest := false
+
+	d, _, err := controller.GetDeploymentsForProxy(c.dLister, p)
+	if err != nil {
+		return err
+	}
+	if d == nil {
+		return fmt.Errorf("No deployment found for \"%s/%s\"", p.Namespace, p.Name)
+	}
+
+	for _, v := range d.Spec.Template.Spec.Volumes {
+		if v.VolumeSource.ConfigMap != nil && v.VolumeSource.ConfigMap.Name == cm.Name {
+			// The Deployment references the configmap so the configmap is the latest
+			isLatest = true
+		}
+	}
+	if !isLatest {
+		cm.SetOwnerReferences(append(cm.GetOwnerReferences(), *metav1.NewControllerRef(p, memcachedProxyType)))
+	}
+
+	// Update the configmap to the api server
+	cm, err = c.client.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
+	if err != nil {
+		c.recordConfigMapEvent("update", p, cm, err)
+		return fmt.Errorf("failed to update configmaps for \"%s/%s\": %v", p.Namespace, p.Name, err)
+	}
+	c.recordConfigMapEvent("update", p, cm, nil)
 
 	return nil
 }
@@ -403,11 +434,12 @@ func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.Co
 	}
 	for _, rs := range rsList {
 		// Ignore replicasets that already own this configmap
-		if !ownerref.IsOwnedBy(cm, rs) {
+		if ownerref.IsOwnedBy(cm, rs) {
 			for _, v := range rs.Spec.Template.Spec.Volumes {
 				if v.VolumeSource.ConfigMap != nil && v.VolumeSource.ConfigMap.Name == cm.Name {
 					// The replicaset references the configmap
 					// Apply an ownerreference
+					c.l.Info.V(4).Printf("add rs owner ref %q", cm.Name)
 					cm.SetOwnerReferences(append(cm.GetOwnerReferences(), *ownerref.NewOwnerRef(rs, replicaSetType)))
 					applied = true
 				}
@@ -425,6 +457,7 @@ func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.Co
 				ownerRefs = append(ownerRefs, ref)
 			}
 		}
+		c.l.Info.V(4).Printf("remove proxy ownerref %q %v", cm.Name, ownerRefs)
 		cm.SetOwnerReferences(ownerRefs)
 	}
 

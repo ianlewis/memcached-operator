@@ -397,7 +397,7 @@ func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.Co
 	applied := false
 
 	// Add ownerref to replicasets
-	rsList, err := c.getRSForProxy(p, cm)
+	rsList, err := c.getRSForProxy(p)
 	if err != nil {
 		return applied, err
 	}
@@ -432,7 +432,7 @@ func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.Co
 }
 
 // getRSForProxy retrieves all replicasets that are owned by the memcachedproxy (via a deployment)
-func (c *Controller) getRSForProxy(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) ([]*appsv1.ReplicaSet, error) {
+func (c *Controller) getRSForProxy(p *v1alpha1.MemcachedProxy) ([]*appsv1.ReplicaSet, error) {
 	d, _, err := controller.GetDeploymentsForProxy(c.dLister, p)
 	if err != nil {
 		return nil, err

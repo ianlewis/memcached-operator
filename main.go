@@ -38,14 +38,14 @@ import (
 	"github.com/ianlewis/controllerutil"
 	"github.com/ianlewis/controllerutil/controller"
 
-	"github.com/ianlewis/memcached-operator/pkg/apis/ianlewis.org/v1alpha1"
-	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
-	memcachedscheme "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned/scheme"
-	ianlewisorginformers "github.com/ianlewis/memcached-operator/pkg/client/informers/externalversions/ianlewis/v1alpha1"
-	"github.com/ianlewis/memcached-operator/pkg/controller/proxy"
-	"github.com/ianlewis/memcached-operator/pkg/controller/proxyconfigmap"
-	"github.com/ianlewis/memcached-operator/pkg/controller/proxydeployment"
-	"github.com/ianlewis/memcached-operator/pkg/controller/proxyservice"
+	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
+	ianlewisorgclientset "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned"
+	memcachedscheme "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned/scheme"
+	ianlewisorginformers "github.com/ianlewis/memcached-operator/internal/client/informers/externalversions/ianlewis/v1alpha1"
+	"github.com/ianlewis/memcached-operator/internal/controller/proxy"
+	"github.com/ianlewis/memcached-operator/internal/controller/proxyconfigmap"
+	"github.com/ianlewis/memcached-operator/internal/controller/proxydeployment"
+	"github.com/ianlewis/memcached-operator/internal/controller/proxyservice"
 )
 
 func main() {

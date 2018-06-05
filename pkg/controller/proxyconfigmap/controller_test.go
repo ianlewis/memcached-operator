@@ -62,6 +62,7 @@ func newFixture(
 		t,
 		proxies,
 		nil,
+		nil,
 		configMaps,
 		services,
 		endpoints,
@@ -74,6 +75,8 @@ func newFixture(
 		metav1.NamespaceAll,
 		cf.MemcachedProxyInformer,
 		cf.ConfigMapInformer,
+		cf.DeploymentInformer,
+		cf.ReplicaSetInformer,
 		cf.ServiceInformer,
 		cf.EndpointsInformer,
 		&record.FakeRecorder{},
@@ -122,8 +125,7 @@ func TestSync(t *testing.T) {
 				core.NewCreateAction(schema.GroupVersionResource{Resource: "configmaps"}, cm.Namespace, cm), func(t *testing.T, action core.Action) {
 					a := action.(core.CreateAction)
 					cmNew := a.GetObject().(*corev1.ConfigMap)
-					assert.Equal(t, cmNew.Name, "", "Name should be empty")
-					assert.Equal(t, cmNew.GenerateName, fmt.Sprintf("%s-config-", p.Name), "GenerateName should be set")
+					assert.Regexp(t, fmt.Sprintf("^%s-config-", p.Name), cmNew.Name, "Name should be set")
 					assert.Equal(t, cmNew.Namespace, p.Namespace, "Namespace should be set")
 					assert.True(t, metav1.IsControlledBy(cmNew, p), "owner reference should be set")
 				},

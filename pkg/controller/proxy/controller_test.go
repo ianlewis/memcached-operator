@@ -46,7 +46,7 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy) *fixture {
-	cf := test.NewClientFixture(t, proxies, nil, nil, nil, nil)
+	cf := test.NewClientFixture(t, proxies, nil, nil, nil, nil, nil)
 
 	c := New(
 		"test-proxy-controller",

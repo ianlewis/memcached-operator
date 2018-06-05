@@ -17,12 +17,12 @@ package test
 import (
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	appsv1informers "k8s.io/client-go/informers/apps/v1"
 	corev1informers "k8s.io/client-go/informers/core/v1"
-	v1beta1informers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
@@ -41,6 +41,7 @@ type ClientFixture struct {
 
 	MemcachedProxyInformer cache.SharedIndexInformer
 	DeploymentInformer     cache.SharedIndexInformer
+	ReplicaSetInformer     cache.SharedIndexInformer
 	ConfigMapInformer      cache.SharedIndexInformer
 	ServiceInformer        cache.SharedIndexInformer
 	EndpointsInformer      cache.SharedIndexInformer
@@ -52,7 +53,8 @@ type ClientFixture struct {
 func NewClientFixture(
 	t *testing.T,
 	proxies []*v1alpha1.MemcachedProxy,
-	deployments []*v1beta1.Deployment,
+	deployments []*appsv1.Deployment,
+	replicasets []*appsv1.ReplicaSet,
 	configMaps []*corev1.ConfigMap,
 	services []*corev1.Service,
 	endpoints []*corev1.Endpoints,
@@ -64,6 +66,9 @@ func NewClientFixture(
 	var objects []runtime.Object
 	for _, d := range deployments {
 		objects = append(objects, d)
+	}
+	for _, rs := range replicasets {
+		objects = append(objects, rs)
 	}
 	for _, cm := range configMaps {
 		objects = append(objects, cm)
@@ -98,9 +103,9 @@ func NewClientFixture(
 
 	// Create the Deployment Informer
 	deploymentInformer := informers.InformerFor(
-		&v1beta1.Deployment{},
+		&appsv1.Deployment{},
 		func() cache.SharedIndexInformer {
-			return v1beta1informers.NewDeploymentInformer(
+			return appsv1informers.NewDeploymentInformer(
 				client,
 				metav1.NamespaceAll,
 				0,
@@ -110,6 +115,22 @@ func NewClientFixture(
 	)
 	for _, d := range deployments {
 		deploymentInformer.GetIndexer().Add(d)
+	}
+
+	// Create the ReplicaSet Informer
+	replicasetInformer := informers.InformerFor(
+		&appsv1.ReplicaSet{},
+		func() cache.SharedIndexInformer {
+			return appsv1informers.NewReplicaSetInformer(
+				client,
+				metav1.NamespaceAll,
+				0,
+				cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+			)
+		},
+	)
+	for _, rs := range replicasets {
+		replicasetInformer.GetIndexer().Add(rs)
 	}
 
 	// Create the ConfigMap Informer
@@ -167,6 +188,7 @@ func NewClientFixture(
 
 		MemcachedProxyInformer: proxyInformer,
 		DeploymentInformer:     deploymentInformer,
+		ReplicaSetInformer:     replicasetInformer,
 		ConfigMapInformer:      configMapInformer,
 		ServiceInformer:        serviceInformer,
 		EndpointsInformer:      endpointsInformer,

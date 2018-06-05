@@ -17,8 +17,8 @@ package test
 import (
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
@@ -26,9 +26,9 @@ import (
 	"github.com/ianlewis/memcached-operator/pkg/controller"
 )
 
-func NewMemcachedProxyDeployment(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) *v1beta1.Deployment {
+func NewMemcachedProxyDeployment(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) *appsv1.Deployment {
 	replicas := int32(1)
-	d := &v1beta1.Deployment{
+	d := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: corev1.SchemeGroupVersion.String(),
 		},
@@ -41,7 +41,7 @@ func NewMemcachedProxyDeployment(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMa
 				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")),
 			},
 		},
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

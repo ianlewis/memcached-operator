@@ -12,12 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proxydeployment
+package hash
 
-const (
-	DeploymentCreateReason       = "MemcachedProxyDeploymentCreated"
-	FailedDeploymentCreateReason = "MemcachedProxyDeploymentCreateError"
-	DeploymentUpdateReason       = "MemcachedProxyDeploymentUpdated"
-	FailedDeploymentUpdateReason = "MemcachedProxyDeploymentUpdateError"
-	DeleteDeploymentReason       = "MemcachedProxyDeploymentDelete"
+import (
+	"strconv"
+
+	"github.com/mitchellh/hashstructure"
 )
+
+// GetHash returns a hex formatted hash of the given object.
+func GetHash(o interface{}) (string, error) {
+	hash, err := hashstructure.Hash(o, nil)
+	if err != nil {
+		return "", err
+	}
+	// Return hex format.
+	return strconv.FormatUint(hash, 16), nil
+}

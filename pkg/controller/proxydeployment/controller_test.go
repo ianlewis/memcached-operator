@@ -19,9 +19,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	core "k8s.io/client-go/testing"
@@ -61,8 +60,8 @@ func (f *fixture) runSync(key string) {
 }
 
 // newFixture creates a new fixture for the proxydeployment controller
-func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, deployments []*v1beta1.Deployment, configMaps []*corev1.ConfigMap) *fixture {
-	cf := test.NewClientFixture(t, proxies, deployments, configMaps, nil, nil)
+func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, deployments []*appsv1.Deployment, configMaps []*corev1.ConfigMap) *fixture {
+	cf := test.NewClientFixture(t, proxies, deployments, nil, configMaps, nil, nil)
 
 	c := New(
 		"test-proxy-controller",
@@ -97,7 +96,7 @@ func TestSyncHandler(t *testing.T) {
 				core.NewCreateAction(schema.GroupVersionResource{Resource: "deployments"}, d.Namespace, d),
 				func(t *testing.T, action core.Action) {
 					a := action.(core.UpdateAction)
-					dNew := a.GetObject().(*v1beta1.Deployment)
+					dNew := a.GetObject().(*appsv1.Deployment)
 
 					// Check object ownership
 					assert.True(t, metav1.IsControlledBy(dNew, p), "deployment must be owned by memcached proxy")

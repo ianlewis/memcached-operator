@@ -60,7 +60,7 @@ func (f *fixture) runSync(key string) {
 }
 
 func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, services []*corev1.Service) *fixture {
-	cf := test.NewClientFixture(t, proxies, nil, nil, services, nil)
+	cf := test.NewClientFixture(t, proxies, nil, nil, nil, services, nil)
 
 	c := New(
 		"test-proxy-controller",

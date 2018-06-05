@@ -5,12 +5,15 @@ VERSION := $(shell cat VERSION)
 GOOS := linux
 GOARCH := amd64
 
-.PHONY: image test clean mcrouter
+.PHONY: codegen image test clean mcrouter
 
-memcached-operator:
+codegen:
+	./hack/update-codegen.sh
+
+memcached-operator: codegen
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build .
 
-image: build
+image: memcached-operator 
 	docker build --build-arg BUILD_DATE=$(shell date --iso-8601=minutes) --build-arg VCS_REF=$(shell git log -1 --oneline | awk '{ print $$1 }') --build-arg VERSION=$(VERSION) -t $(REGISTRY):v$(VERSION) .
 
 mcrouter:

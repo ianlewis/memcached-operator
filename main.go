@@ -24,11 +24,11 @@ import (
 
 	"github.com/golang/glog"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appsv1informers "k8s.io/client-go/informers/apps/v1"
 	corev1informers "k8s.io/client-go/informers/core/v1"
-	v1beta1informers "k8s.io/client-go/informers/extensions/v1beta1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -174,6 +174,28 @@ func main() {
 				},
 			),
 			ctx.SharedInformers.InformerFor(
+				&appsv1.Deployment{},
+				func() cache.SharedIndexInformer {
+					return appsv1informers.NewDeploymentInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
+				&appsv1.ReplicaSet{},
+				func() cache.SharedIndexInformer {
+					return appsv1informers.NewReplicaSetInformer(
+						ctx.Client,
+						*namespace,
+						*defaultResync,
+						cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+					)
+				},
+			),
+			ctx.SharedInformers.InformerFor(
 				&corev1.Service{},
 				func() cache.SharedIndexInformer {
 					return corev1informers.NewServiceInformer(
@@ -218,9 +240,9 @@ func main() {
 				},
 			),
 			ctx.SharedInformers.InformerFor(
-				&v1beta1.Deployment{},
+				&appsv1.Deployment{},
 				func() cache.SharedIndexInformer {
-					return v1beta1informers.NewDeploymentInformer(
+					return appsv1informers.NewDeploymentInformer(
 						ctx.Client,
 						*namespace,
 						*defaultResync,

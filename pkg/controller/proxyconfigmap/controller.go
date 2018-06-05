@@ -22,6 +22,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
@@ -37,7 +38,6 @@ import (
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/pkg/client/clientset/versioned"
 	ianlewisorglisters "github.com/ianlewis/memcached-operator/pkg/client/listers/ianlewis/v1alpha1"
 	"github.com/ianlewis/memcached-operator/pkg/controller"
-	"github.com/ianlewis/memcached-operator/pkg/util/hash"
 	"github.com/ianlewis/memcached-operator/pkg/util/ownerref"
 )
 
@@ -240,17 +240,13 @@ func (c *Controller) configMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.Conf
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mcrouter config: %v", err)
 	}
-	configJSON, err := json.Marshal(config)
+	configBytes, err := json.Marshal(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create render config.json: %v", err)
 	}
+	configJSON := string(configBytes)
 	data := map[string]string{
-		"config.json": string(configJSON),
-	}
-
-	hash, err := hash.GetHash(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create hash for config: %v", err)
+		"config.json": configJSON,
 	}
 
 	cm := &corev1.ConfigMap{
@@ -259,8 +255,8 @@ func (c *Controller) configMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.Conf
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			// Generate a new unique name on the API server side
-			Name:            fmt.Sprintf("%s-config-%s", p.Name, hash),
+			// Generate the name of the configmap
+			Name:            controller.MakeName(fmt.Sprintf("%s-config-", p.Name), []string{p.Name, configJSON}),
 			Namespace:       p.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*controller.NewProxyOwnerRef(p)},
 		},
@@ -314,6 +310,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 	switch len(cmList) {
 	case 0:
+		c.l.Info.V(4).Printf("No new configmaps found")
 		// There are no new configmaps. Check if a new one needs to be created.
 		cmNew, err := c.configMapForProxy(p)
 		if err != nil {
@@ -358,6 +355,7 @@ func (c *Controller) syncHandler(key string) error {
 		// There is only one new configmap.
 		// Check if a replicaset has been created for the configmap. If so update the ownerref to point to the replicaset.
 		cm := cmList[0]
+		c.l.Info.V(4).Printf("One new configmap found: %s", cm.Name)
 		applied, err := c.applyOwnerRefToCM(p, cm)
 		if err != nil {
 			return fmt.Errorf("failed to apply ownerrefs to configmap for %q: %v", key, err)
@@ -365,7 +363,6 @@ func (c *Controller) syncHandler(key string) error {
 
 		if applied {
 			// Update the configmap to the api server
-			c.l.Info.V(4).Printf("remove proxy ownerref %q %v", cm.Name, cm.GetOwnerReferences())
 			cm, err = c.client.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
 			if err != nil {
 				c.recordConfigMapEvent("update", p, cm, err)
@@ -375,6 +372,11 @@ func (c *Controller) syncHandler(key string) error {
 
 			// Requeue in case any new cluster changes happened in addition to a replicaset being created
 			c.queue.AddRateLimited(key)
+		} else {
+			c.l.Info.V(4).Printf("No replicaset created yet. requeueing...")
+			// Enqueue after 1 second. This should be enough under normal operation.
+			// TODO: Backoff requeue just in case something bad happens.
+			c.queue.AddAfter(key, time.Second)
 		}
 	default:
 		// There are more than one new configmaps. This shouldn't happen but we should try to recover.
@@ -425,53 +427,58 @@ func (c *Controller) reuseConfigMap(p *v1alpha1.MemcachedProxy, cm *corev1.Confi
 
 // applyOwnerRefToCM applies owner references to the configmap for each replicaset owned by the given memcachedproxy whose podspec references the configmap. Ownerreferences to the memcachedproxy are removed.
 func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) (bool, error) {
-	applied := false
-
 	// Add ownerref to replicasets
-	rsList, err := c.getRSForProxy(p)
+	rs, err := c.getNewRSForProxy(p)
 	if err != nil {
-		return applied, err
+		return false, err
 	}
-	for _, rs := range rsList {
-		// Ignore replicasets that already own this configmap
-		if ownerref.IsOwnedBy(cm, rs) {
-			for _, v := range rs.Spec.Template.Spec.Volumes {
-				if v.VolumeSource.ConfigMap != nil && v.VolumeSource.ConfigMap.Name == cm.Name {
-					// The replicaset references the configmap
-					// Apply an ownerreference
-					c.l.Info.V(4).Printf("add rs owner ref %q", cm.Name)
-					cm.SetOwnerReferences(append(cm.GetOwnerReferences(), *ownerref.NewOwnerRef(rs, replicaSetType)))
-					applied = true
-				}
-			}
-		}
+	if rs == nil {
+		return false, nil
 	}
 
-	// Only remove the proxy ownerref if the replicaset ownerref was applied so we don't get into a state
-	// where the configmap has zero ownerrefs
-	if applied {
-		ownerRefs := []metav1.OwnerReference{}
-		for _, ref := range cm.GetOwnerReferences() {
-			// Add all but references to the memcachedproxy
-			if ref.UID != p.GetUID() {
-				ownerRefs = append(ownerRefs, ref)
-			}
-		}
-		c.l.Info.V(4).Printf("remove proxy ownerref %q %v", cm.Name, ownerRefs)
-		cm.SetOwnerReferences(ownerRefs)
+	// Do not add a new ownerref if the configmap is already owned. This could happen if
+	// both the configmap and replicaset are reused.
+	if !ownerref.IsOwnedBy(cm, rs) {
+		c.l.Info.V(4).Printf("add rs owner ref %q", cm.Name)
+		cm.SetOwnerReferences(append(cm.GetOwnerReferences(), *ownerref.NewOwnerRef(rs, replicaSetType)))
 	}
 
-	return applied, nil
+	ownerRefs := []metav1.OwnerReference{}
+	for _, ref := range cm.GetOwnerReferences() {
+		// Add all but references to the memcachedproxy
+		if ref.UID != p.GetUID() {
+			ownerRefs = append(ownerRefs, ref)
+		}
+	}
+	c.l.Info.V(4).Printf("remove proxy ownerref %q %v", cm.Name, ownerRefs)
+	cm.SetOwnerReferences(ownerRefs)
+
+	return true, nil
 }
 
-// getRSForProxy retrieves all replicasets that are owned by the memcachedproxy (via a deployment)
-func (c *Controller) getRSForProxy(p *v1alpha1.MemcachedProxy) ([]*appsv1.ReplicaSet, error) {
+// EqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
+// We ignore pod-template-hash because:
+// 1. The hash result would be different upon podTemplateSpec API changes
+//    (e.g. the addition of a new field will cause the hash code to change)
+// 2. The deployment template won't have hash labels
+// Copied from kubernetes pkg/controller/deployment/util/deployment_util.go
+func EqualIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
+	t1Copy := template1.DeepCopy()
+	t2Copy := template2.DeepCopy()
+	// Remove hash labels from template.Labels before comparing
+	delete(t1Copy.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	delete(t2Copy.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
+}
+
+// getNewRSForProxy retrieves the newest replicaset for the Deployment managed by the MemcachedProxy. If no replicaset exists yet then return nil.
+func (c *Controller) getNewRSForProxy(p *v1alpha1.MemcachedProxy) (*appsv1.ReplicaSet, error) {
 	d, _, err := controller.GetDeploymentsForProxy(c.dLister, p)
 	if err != nil {
 		return nil, err
 	}
 	if d == nil {
-		return []*appsv1.ReplicaSet{}, nil
+		return nil, nil
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
@@ -479,6 +486,18 @@ func (c *Controller) getRSForProxy(p *v1alpha1.MemcachedProxy) ([]*appsv1.Replic
 		return nil, err
 	}
 
-	// Select replicasects for the deployment that reference the configmap
-	return c.rsLister.ReplicaSets(p.Namespace).List(selector)
+	// Select replicasects for the deployment
+	rsList, err := c.rsLister.ReplicaSets(p.Namespace).List(selector)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the new ReplicaSet by comparing it's pod spec to the deployment's pod spec
+	for _, rs := range rsList {
+		if EqualIgnoreHash(&rs.Spec.Template, &d.Spec.Template) {
+			return rs, nil
+		}
+	}
+
+	return nil, nil
 }

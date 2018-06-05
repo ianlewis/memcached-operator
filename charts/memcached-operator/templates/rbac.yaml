@@ -26,7 +26,7 @@ rules:
   resources: ["memcachedproxies"]
   verbs: ["*"]
 - apiGroups: [""]
-  resources: ["services", "endpoints", "configmaps", "events"]
+  resources: ["deployments", "replicasets", "services", "endpoints", "configmaps", "events"]
   verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1

@@ -19,8 +19,8 @@ set -o nounset
 set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE}")/..
-DIFFROOT="${SCRIPT_ROOT}/pkg"
-TMP_DIFFROOT="${SCRIPT_ROOT}/_tmp/pkg"
+DIFFROOT="${SCRIPT_ROOT}/internal"
+TMP_DIFFROOT="${SCRIPT_ROOT}/_tmp/internal"
 _tmp="${SCRIPT_ROOT}/_tmp"
 
 cleanup() {

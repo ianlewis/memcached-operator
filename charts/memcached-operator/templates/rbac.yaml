@@ -26,8 +26,11 @@ rules:
   resources: ["memcachedproxies"]
   verbs: ["*"]
 - apiGroups: [""]
-  resources: ["deployments", "replicasets", "services", "endpoints", "configmaps", "events"]
+  resources: ["deployments", "services", "configmaps", "events"]
   verbs: ["*"]
+- apiGroups: [""]
+  resources: ["replicasets", "endpoints"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding

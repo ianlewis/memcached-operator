@@ -30,7 +30,9 @@ type ExpectedAction struct {
 }
 
 func (a *ExpectedAction) Check(t *testing.T, action core.Action) {
-	assert.Condition(t, func() bool { return a.Action.Matches(action.GetVerb(), action.GetResource().Resource) }, "action must match")
+	if !assert.Condition(t, func() bool { return a.Action.Matches(action.GetVerb(), action.GetResource().Resource) }, "action must match") {
+		assert.FailNow(t, "failing early")
+	}
 	assert.Equal(t, action.GetSubresource(), a.Action.GetSubresource(), "action subresource must match")
 	assert.Equal(t, action.GetNamespace(), a.Action.GetNamespace(), "action namespace must match")
 

@@ -29,7 +29,7 @@ import (
 )
 
 // GetDeploymentsForProxy returns the deployment for the given proxy as well as a list of any other deployments owned by the proxy. Under normal circumstances this list is empty.
-func GetDeploymentsForProxy(dLister appsv1listers.DeploymentLister, p *v1alpha1.MemcachedProxy) (*appsv1.Deployment, []*appsv1.Deployment, error) {
+func GetDeploymentsForProxy(dLister appsv1listers.DeploymentLister, p *v1alpha1.MemcachedCluster) (*appsv1.Deployment, []*appsv1.Deployment, error) {
 	dList, err := dLister.Deployments(p.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, []*appsv1.Deployment{}, nil
@@ -55,7 +55,7 @@ func GetDeploymentsForProxy(dLister appsv1listers.DeploymentLister, p *v1alpha1.
 }
 
 // GetConfigMapForProxy returns the configmap owned by the proxy or an error if multiple are found.
-func GetConfigMapForProxy(cmLister corev1listers.ConfigMapLister, p *v1alpha1.MemcachedProxy) (*corev1.ConfigMap, error) {
+func GetConfigMapForProxy(cmLister corev1listers.ConfigMapLister, p *v1alpha1.MemcachedCluster) (*corev1.ConfigMap, error) {
 	cmList, err := GetConfigMapsForProxy(cmLister, p)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func GetConfigMapForProxy(cmLister corev1listers.ConfigMapLister, p *v1alpha1.Me
 }
 
 // GetConfigMapsForProxy returns all configmaps owned by the proxy
-func GetConfigMapsForProxy(cmLister corev1listers.ConfigMapLister, p *v1alpha1.MemcachedProxy) ([]*corev1.ConfigMap, error) {
+func GetConfigMapsForProxy(cmLister corev1listers.ConfigMapLister, p *v1alpha1.MemcachedCluster) ([]*corev1.ConfigMap, error) {
 	cmList, err := cmLister.ConfigMaps(p.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err

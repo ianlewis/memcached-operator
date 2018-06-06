@@ -59,14 +59,14 @@ func (f *fixture) runSync(key string) {
 	assert.NoError(f.T, err, "syncHandler must complete successfully")
 }
 
-func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, services []*corev1.Service) *fixture {
+func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedCluster, services []*corev1.Service) *fixture {
 	cf := test.NewClientFixture(t, proxies, nil, nil, nil, services, nil)
 
 	c := New(
 		"test-proxy-controller",
 		cf.Client,
 		cf.CRDClient,
-		cf.MemcachedProxyInformer,
+		cf.MemcachedClusterInformer,
 		cf.ServiceInformer,
 		&record.FakeRecorder{},
 		logging.New(""),
@@ -79,15 +79,15 @@ func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, services []*co
 // TestSyncHandler tests the functionality of the proxyservice
 // controller's syncHandler method
 func TestSyncHandler(t *testing.T) {
-	// Tests whether a service is created when a new MemcachedProxy
+	// Tests whether a service is created when a new MemcachedCluster
 	// is created.
 	t.Run("a new service should be created", func(t *testing.T) {
 		p := test.NewShardedProxy("hoge", "fuga")
-		f := newFixture(t, []*v1alpha1.MemcachedProxy{p}, nil)
+		f := newFixture(t, []*v1alpha1.MemcachedCluster{p}, nil)
 
 		f.runSync(getKey(p, t))
 
-		s := test.NewMemcachedProxyService(p)
+		s := test.NewMemcachedClusterService(p)
 		f.ExpectClientActions([]test.ExpectedAction{
 			{
 				core.NewCreateAction(schema.GroupVersionResource{Resource: "services"}, s.Namespace, s),

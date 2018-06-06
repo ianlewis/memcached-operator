@@ -21,8 +21,8 @@ import (
 )
 
 // NewProxyOwnerRef returns a new OwnerReference referencing the given proxy.
-func NewProxyOwnerRef(c *v1alpha1.MemcachedProxy) *metav1.OwnerReference {
-	controllerKind := v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")
+func NewProxyOwnerRef(c *v1alpha1.MemcachedCluster) *metav1.OwnerReference {
+	controllerKind := v1alpha1.SchemeGroupVersion.WithKind("MemcachedCluster")
 	// Set the owner reference so that dependant objects can be deleted by garbage collection.
 	// Requires Kubernetes 1.8+ for support for CRDs
 	// See: https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/

@@ -45,14 +45,14 @@ type fixture struct {
 	controller *Controller
 }
 
-func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy) *fixture {
+func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedCluster) *fixture {
 	cf := test.NewClientFixture(t, proxies, nil, nil, nil, nil, nil)
 
 	c := New(
 		"test-proxy-controller",
 		cf.Client,
 		cf.CRDClient,
-		cf.MemcachedProxyInformer,
+		cf.MemcachedClusterInformer,
 		&record.FakeRecorder{},
 		logging.New(""),
 		1,
@@ -78,14 +78,14 @@ func (f *fixture) runSync(key string) {
 // controller when a new memcached proxy events occur
 func TestSync(t *testing.T) {
 	t.Run("the new proxy should be updated", func(t *testing.T) {
-		// Create a raw MemcachedProxy object as it
+		// Create a raw MemcachedCluster object as it
 		// would be created via kubectl
-		p := &v1alpha1.MemcachedProxy{
+		p := &v1alpha1.MemcachedCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "hoge",
 				Namespace: metav1.NamespaceDefault,
 			},
-			Spec: v1alpha1.MemcachedProxySpec{
+			Spec: v1alpha1.MemcachedClusterSpec{
 				Rules: v1alpha1.RuleSpec{
 					Service: &v1alpha1.ServiceSpec{
 						Name: "fuga",
@@ -94,7 +94,7 @@ func TestSync(t *testing.T) {
 			},
 		}
 
-		f := newFixture(t, []*v1alpha1.MemcachedProxy{p})
+		f := newFixture(t, []*v1alpha1.MemcachedCluster{p})
 
 		f.runSync(getKey(p, t))
 
@@ -103,7 +103,7 @@ func TestSync(t *testing.T) {
 				Action: core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
 				F: func(t *testing.T, action core.Action) {
 					a := action.(core.UpdateAction)
-					pNew := a.GetObject().(*v1alpha1.MemcachedProxy)
+					pNew := a.GetObject().(*v1alpha1.MemcachedCluster)
 
 					// Check that the default rule type was set
 					assert.Equal(t, pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType, "rules type must be equal")

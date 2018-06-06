@@ -54,7 +54,7 @@ func (c *Controller) getAffectedProxies(ep *corev1.Endpoints) (sets.String, erro
 // key is a string key as used in the workqueue.
 func (c *Controller) getAllProxyServiceSpecs() (map[string][]*v1alpha1.ServiceSpec, error) {
 	// Only watch the namespace given to the controller constructor
-	proxies, err := c.pLister.MemcachedProxies(c.namespace).List(labels.Everything())
+	proxies, err := c.pLister.MemcachedClusters(c.namespace).List(labels.Everything())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memcached proxies for namespace %q", c.namespace)
 	}
@@ -73,7 +73,7 @@ func (c *Controller) getAllProxyServiceSpecs() (map[string][]*v1alpha1.ServiceSp
 }
 
 // getProxyServiceSpecs returns a list of unique service specs referenced by the given proxy
-func (c *Controller) getProxyServiceSpecs(p *v1alpha1.MemcachedProxy) []*v1alpha1.ServiceSpec {
+func (c *Controller) getProxyServiceSpecs(p *v1alpha1.MemcachedCluster) []*v1alpha1.ServiceSpec {
 	serviceMap := c.serviceSpecsForRule(p.Spec.Rules)
 
 	services := make([]*v1alpha1.ServiceSpec, len(serviceMap))
@@ -107,7 +107,7 @@ func (c *Controller) serviceSpecsForRule(r v1alpha1.RuleSpec) map[string]*v1alph
 	return result
 }
 
-// addEndpoints enqueues MemcachedProxy objects that reference services
+// addEndpoints enqueues MemcachedCluster objects that reference services
 // that are associated with the endpoints object
 func (c *Controller) addEndpoints(obj interface{}) {
 	// verify that a service exists for the endpoint
@@ -125,7 +125,7 @@ func (c *Controller) addEndpoints(obj interface{}) {
 }
 
 // Update endpoint checks if there was a relevant change and then
-// enqueues MemcachedProxy objects that reference services
+// enqueues MemcachedCluster objects that reference services
 // that are associated with the endpoints object
 func (c *Controller) updateEndpoints(old, new interface{}) {
 	oldEndpoints := old.(*corev1.Endpoints)
@@ -142,7 +142,7 @@ func (c *Controller) updateEndpoints(old, new interface{}) {
 	}
 }
 
-// deleteEndpoints enqueues MemcachedProxy objects that reference services
+// deleteEndpoints enqueues MemcachedCluster objects that reference services
 // that are associated with the endpoints object
 func (c *Controller) deleteEndpoints(obj interface{}) {
 	if _, ok := obj.(*corev1.Endpoints); ok {

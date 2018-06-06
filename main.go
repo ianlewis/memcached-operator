@@ -41,7 +41,7 @@ import (
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned"
 	memcachedscheme "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned/scheme"
-	ianlewisorginformers "github.com/ianlewis/memcached-operator/internal/client/informers/externalversions/ianlewis/v1alpha1"
+	ianlewisorginformers "github.com/ianlewis/memcached-operator/internal/client/informers/externalversions/ianlewis.org/v1alpha1"
 	"github.com/ianlewis/memcached-operator/internal/controller/proxy"
 	"github.com/ianlewis/memcached-operator/internal/controller/proxyconfigmap"
 	"github.com/ianlewis/memcached-operator/internal/controller/proxydeployment"
@@ -96,9 +96,9 @@ func main() {
 			ctx.Client,
 			ianlewisorgClient,
 			ctx.SharedInformers.InformerFor(
-				&v1alpha1.MemcachedProxy{},
+				&v1alpha1.MemcachedCluster{},
 				func() cache.SharedIndexInformer {
-					return ianlewisorginformers.NewMemcachedProxyInformer(
+					return ianlewisorginformers.NewMemcachedClusterInformer(
 						ianlewisorgClient,
 						*namespace,
 						*defaultResync,
@@ -118,9 +118,9 @@ func main() {
 			ctx.Client,
 			ianlewisorgClient,
 			ctx.SharedInformers.InformerFor(
-				&v1alpha1.MemcachedProxy{},
+				&v1alpha1.MemcachedCluster{},
 				func() cache.SharedIndexInformer {
-					return ianlewisorginformers.NewMemcachedProxyInformer(
+					return ianlewisorginformers.NewMemcachedClusterInformer(
 						ianlewisorgClient,
 						*namespace,
 						*defaultResync,
@@ -152,9 +152,9 @@ func main() {
 			ianlewisorgClient,
 			*namespace,
 			ctx.SharedInformers.InformerFor(
-				&v1alpha1.MemcachedProxy{},
+				&v1alpha1.MemcachedCluster{},
 				func() cache.SharedIndexInformer {
-					return ianlewisorginformers.NewMemcachedProxyInformer(
+					return ianlewisorginformers.NewMemcachedClusterInformer(
 						ianlewisorgClient,
 						*namespace,
 						*defaultResync,
@@ -229,9 +229,9 @@ func main() {
 			ctx.Client,
 			ianlewisorgClient,
 			ctx.SharedInformers.InformerFor(
-				&v1alpha1.MemcachedProxy{},
+				&v1alpha1.MemcachedCluster{},
 				func() cache.SharedIndexInformer {
-					return ianlewisorginformers.NewMemcachedProxyInformer(
+					return ianlewisorginformers.NewMemcachedClusterInformer(
 						ianlewisorgClient,
 						*namespace,
 						*defaultResync,

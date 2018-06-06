@@ -67,7 +67,7 @@ type McRouterConfig struct {
 	Route StringOrRoute   `json:"route,omitempty"`
 }
 
-func (c *Controller) configForProxy(p *v1alpha1.MemcachedProxy) (*McRouterConfig, error) {
+func (c *Controller) configForProxy(p *v1alpha1.MemcachedCluster) (*McRouterConfig, error) {
 	config := &McRouterConfig{}
 	config.Pools = make(map[string]Pool)
 

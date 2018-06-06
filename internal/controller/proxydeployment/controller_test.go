@@ -60,14 +60,14 @@ func (f *fixture) runSync(key string) {
 }
 
 // newFixture creates a new fixture for the proxydeployment controller
-func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, deployments []*appsv1.Deployment, configMaps []*corev1.ConfigMap) *fixture {
+func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedCluster, deployments []*appsv1.Deployment, configMaps []*corev1.ConfigMap) *fixture {
 	cf := test.NewClientFixture(t, proxies, deployments, nil, configMaps, nil, nil)
 
 	c := New(
 		"test-proxy-controller",
 		cf.Client,
 		cf.CRDClient,
-		cf.MemcachedProxyInformer,
+		cf.MemcachedClusterInformer,
 		cf.DeploymentInformer,
 		cf.ConfigMapInformer,
 		&record.FakeRecorder{},
@@ -82,15 +82,15 @@ func newFixture(t *testing.T, proxies []*v1alpha1.MemcachedProxy, deployments []
 // controller's syncHandler method
 func TestSyncHandler(t *testing.T) {
 	// Tests whether a deployment for mcrouter is created when
-	// a new MemcachedProxy is created.
+	// a new MemcachedCluster is created.
 	t.Run("a new deployment should be created", func(t *testing.T) {
 		p := test.NewShardedProxy("hoge", "fuga")
 		cm := test.NewProxyConfigMap(p)
-		f := newFixture(t, []*v1alpha1.MemcachedProxy{p}, nil, []*corev1.ConfigMap{cm})
+		f := newFixture(t, []*v1alpha1.MemcachedCluster{p}, nil, []*corev1.ConfigMap{cm})
 
 		f.runSync(getKey(p, t))
 
-		d := test.NewMemcachedProxyDeployment(p, cm)
+		d := test.NewMemcachedClusterDeployment(p, cm)
 		f.ExpectClientActions([]test.ExpectedAction{
 			{
 				core.NewCreateAction(schema.GroupVersionResource{Resource: "deployments"}, d.Namespace, d),

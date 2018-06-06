@@ -29,26 +29,26 @@ const (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MemcachedProxy enables creating a managed memcached cluster.
-type MemcachedProxy struct {
+// MemcachedCluster enables creating a managed memcached cluster.
+type MemcachedCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MemcachedProxySpec   `json:"spec"`
-	Status MemcachedProxyStatus `json:"status"`
+	Spec   MemcachedClusterSpec   `json:"spec"`
+	Status MemcachedClusterStatus `json:"status"`
 }
 
-func (p *MemcachedProxy) ApplyDefaults() {
+func (p *MemcachedCluster) ApplyDefaults() {
 	p.Spec.ApplyDefaults(p)
 }
 
-// MemcachedProxySpec is the specification of the desired state of a MemcachedProxy.
-type MemcachedProxySpec struct {
+// MemcachedClusterSpec is the specification of the desired state of a MemcachedCluster.
+type MemcachedClusterSpec struct {
 	Rules    RuleSpec     `json:"rules"`
 	McRouter McRouterSpec `json:"mcrouter"`
 }
 
-func (s *MemcachedProxySpec) ApplyDefaults(p *MemcachedProxy) {
+func (s *MemcachedClusterSpec) ApplyDefaults(p *MemcachedCluster) {
 	s.McRouter.ApplyDefaults(p)
 	s.Rules.ApplyDefaults(p)
 }
@@ -62,7 +62,7 @@ type McRouterSpec struct {
 	StatsRoot string `json:"statsRoot,omitempty"`
 }
 
-func (s *McRouterSpec) ApplyDefaults(p *MemcachedProxy) {
+func (s *McRouterSpec) ApplyDefaults(p *MemcachedCluster) {
 	if s.Image == "" {
 		s.Image = "ianmlewis/mcrouter:v0.36.0-2"
 	}
@@ -92,7 +92,7 @@ type RuleSpec struct {
 	Children []RuleSpec   `json:"children,omitempty"`
 }
 
-func (r *RuleSpec) ApplyDefaults(p *MemcachedProxy) {
+func (r *RuleSpec) ApplyDefaults(p *MemcachedCluster) {
 	if r.Type == "" {
 		r.Type = ShardedRuleType
 	}
@@ -110,14 +110,14 @@ type ServiceSpec struct {
 	Port      intstr.IntOrString `json:"port"`
 }
 
-func (s *ServiceSpec) ApplyDefaults(p *MemcachedProxy) {
+func (s *ServiceSpec) ApplyDefaults(p *MemcachedCluster) {
 	if s.Namespace == "" {
 		s.Namespace = p.Namespace
 	}
 }
 
-// MemcachedProxyStatus is the most recently observed status of the cluster
-type MemcachedProxyStatus struct {
+// MemcachedClusterStatus is the most recently observed status of the cluster
+type MemcachedClusterStatus struct {
 	// The generation observed by the MemcachedProxy controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// TODO: updated replicas in status?
@@ -128,10 +128,10 @@ type MemcachedProxyStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MemcachedProxyList is a list of MemcachedProxy objects.
-type MemcachedProxyList struct {
+// MemcachedClusterList is a list of MemcachedCluster objects.
+type MemcachedClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []MemcachedProxy `json:"items"`
+	Items []MemcachedCluster `json:"items"`
 }

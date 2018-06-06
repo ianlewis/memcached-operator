@@ -21,8 +21,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// MemcachedProxies returns a MemcachedProxyInformer.
-	MemcachedProxies() MemcachedProxyInformer
+	// MemcachedClusters returns a MemcachedClusterInformer.
+	MemcachedClusters() MemcachedClusterInformer
 }
 
 type version struct {
@@ -36,7 +36,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// MemcachedProxies returns a MemcachedProxyInformer.
-func (v *version) MemcachedProxies() MemcachedProxyInformer {
-	return &memcachedProxyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// MemcachedClusters returns a MemcachedClusterInformer.
+func (v *version) MemcachedClusters() MemcachedClusterInformer {
+	return &memcachedClusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

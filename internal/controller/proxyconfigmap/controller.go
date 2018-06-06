@@ -36,19 +36,19 @@ import (
 
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned"
-	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis/v1alpha1"
+	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis.org/v1alpha1"
 	"github.com/ianlewis/memcached-operator/internal/controller"
 	"github.com/ianlewis/memcached-operator/internal/util/ownerref"
 )
 
 var (
 	KeyFunc            = cache.DeletionHandlingMetaNamespaceKeyFunc
-	memcachedProxyType = v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")
+	memcachedProxyType = v1alpha1.SchemeGroupVersion.WithKind("MemcachedCluster")
 	replicaSetType     = appsv1.SchemeGroupVersion.WithKind("ReplicaSet")
 )
 
 // Controller represents a memcached proxy config map controller that
-// watches MemcachedProxy objects and creates a ConfigMap used to
+// watches MemcachedCluster objects and creates a ConfigMap used to
 // configure mcrouter.
 type Controller struct {
 	client            clientset.Interface
@@ -57,7 +57,7 @@ type Controller struct {
 	// Watches are limited to this namespace
 	namespace string
 
-	pLister  ianlewisorglisters.MemcachedProxyLister
+	pLister  ianlewisorglisters.MemcachedClusterLister
 	dLister  appsv1listers.DeploymentLister
 	rsLister appsv1listers.ReplicaSetLister
 	cmLister corev1listers.ConfigMapLister
@@ -101,7 +101,7 @@ func New(
 
 		namespace: namespace,
 
-		pLister:  ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
+		pLister:  ianlewisorglisters.NewMemcachedClusterLister(proxyInformer.GetIndexer()),
 		cmLister: corev1listers.NewConfigMapLister(configMapInformer.GetIndexer()),
 		dLister:  appsv1listers.NewDeploymentLister(deploymentInformer.GetIndexer()),
 		rsLister: appsv1listers.NewReplicaSetLister(replicasetInformer.GetIndexer()),
@@ -151,14 +151,14 @@ func New(
 	return c
 }
 
-// enqueueOwned enqueues MemcachedProxy objects in the workqueue when one of
+// enqueueOwned enqueues MemcachedCluster objects in the workqueue when one of
 // one of its owned objects changes
 func (c *Controller) enqueueOwned(obj interface{}) {
 	if o, ok := obj.(metav1.Object); ok {
 		owner := metav1.GetControllerOf(o)
 		if owner != nil {
-			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
-				// Enqueue the MemcachedProxy that owns this object
+			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedCluster" {
+				// Enqueue the MemcachedCluster that owns this object
 				// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
 				// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
 				c.queue.Add(o.GetNamespace() + "/" + owner.Name)
@@ -234,7 +234,7 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 }
 
 // configMapForProxy gets a configmap based on state of pods in referenced memcached clusters.
-func (c *Controller) configMapForProxy(p *v1alpha1.MemcachedProxy) (*corev1.ConfigMap, error) {
+func (c *Controller) configMapForProxy(p *v1alpha1.MemcachedCluster) (*corev1.ConfigMap, error) {
 	// Render config file
 	config, err := c.configForProxy(p)
 	if err != nil {
@@ -279,7 +279,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the proxy with this namespace/name
-	p, err := c.pLister.MemcachedProxies(ns).Get(name)
+	p, err := c.pLister.MemcachedClusters(ns).Get(name)
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.
@@ -385,8 +385,8 @@ func (c *Controller) syncHandler(key string) error {
 
 // reuseConfigMap reuses an existing configmap. It first checks if the ConfigMap is not the
 // latest version of and if it isn't then it updates the ConfigMap with a ownerref pointing
-// to the MemcachedProxy
-func (c *Controller) reuseConfigMap(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) error {
+// to the MemcachedCluster
+func (c *Controller) reuseConfigMap(p *v1alpha1.MemcachedCluster, cm *corev1.ConfigMap) error {
 	// Only update the ConfigMap if the ConfigMap is not the latest ConfigMap version.
 	// Check the deployment's podspec to see if it references the ConfigMap. If it does
 	// then the ConfigMap is the latest
@@ -422,7 +422,7 @@ func (c *Controller) reuseConfigMap(p *v1alpha1.MemcachedProxy, cm *corev1.Confi
 }
 
 // applyOwnerRefToCM applies owner references to the configmap for each replicaset owned by the given memcachedproxy whose podspec references the configmap. Ownerreferences to the memcachedproxy are removed.
-func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) (bool, error) {
+func (c *Controller) applyOwnerRefToCM(p *v1alpha1.MemcachedCluster, cm *corev1.ConfigMap) (bool, error) {
 	// Add ownerref to replicasets
 	rs, err := c.getNewRSForProxy(p)
 	if err != nil {
@@ -467,8 +467,8 @@ func EqualIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 
-// getNewRSForProxy retrieves the newest replicaset for the Deployment managed by the MemcachedProxy. If no replicaset exists yet then return nil.
-func (c *Controller) getNewRSForProxy(p *v1alpha1.MemcachedProxy) (*appsv1.ReplicaSet, error) {
+// getNewRSForProxy retrieves the newest replicaset for the Deployment managed by the MemcachedCluster. If no replicaset exists yet then return nil.
+func (c *Controller) getNewRSForProxy(p *v1alpha1.MemcachedCluster) (*appsv1.ReplicaSet, error) {
 	d, _, err := controller.GetDeploymentsForProxy(c.dLister, p)
 	if err != nil {
 		return nil, err

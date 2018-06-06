@@ -27,7 +27,7 @@ import (
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 )
 
-// TestRouteForRule tests route creation for a MemcachedProxy rule spec
+// TestRouteForRule tests route creation for a MemcachedCluster rule spec
 func TestRouteForRule(t *testing.T) {
 	t.Run("sharded rule with service should be created correctly", func(t *testing.T) {
 		f := newFixture(t, nil, nil, nil, nil)
@@ -155,11 +155,11 @@ func TestRouteForRule(t *testing.T) {
 // TestPoolForService tests the poolForService controller method
 func TestPoolForService(t *testing.T) {
 	t.Run("service with multiple ports should use correct mapped port", func(t *testing.T) {
-		// Create the MemcachedProxy
+		// Create the MemcachedCluster
 		// The proxy references port 1000 on service "fuga".
 		// That maps to port 11211 on the service so memcached-operator
 		// should pick the endpoints for that port.
-		p := &v1alpha1.MemcachedProxy{
+		p := &v1alpha1.MemcachedCluster{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: v1alpha1.SchemeGroupVersion.String(),
 			},
@@ -170,7 +170,7 @@ func TestPoolForService(t *testing.T) {
 				Annotations: make(map[string]string),
 				Generation:  1,
 			},
-			Spec: v1alpha1.MemcachedProxySpec{
+			Spec: v1alpha1.MemcachedClusterSpec{
 				Rules: v1alpha1.RuleSpec{
 					Type: v1alpha1.ReplicatedRuleType,
 					Service: &v1alpha1.ServiceSpec{
@@ -258,7 +258,7 @@ func TestPoolForService(t *testing.T) {
 
 		f := newFixture(
 			t,
-			[]*v1alpha1.MemcachedProxy{p},
+			[]*v1alpha1.MemcachedCluster{p},
 			nil,
 			[]*corev1.Service{s},
 			[]*corev1.Endpoints{ep},

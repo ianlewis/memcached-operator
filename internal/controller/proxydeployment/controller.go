@@ -34,7 +34,7 @@ import (
 
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned"
-	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis/v1alpha1"
+	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis.org/v1alpha1"
 	"github.com/ianlewis/memcached-operator/internal/controller"
 )
 
@@ -42,12 +42,12 @@ var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
-// Controller represents a memcached proxy service controller which watches MemcachedProxy objects and creates associated Service objects.
+// Controller represents a memcached proxy service controller which watches MemcachedCluster objects and creates associated Service objects.
 type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
-	pLister  ianlewisorglisters.MemcachedProxyLister
+	pLister  ianlewisorglisters.MemcachedClusterLister
 	dLister  appsv1listers.DeploymentLister
 	cmLister corev1listers.ConfigMapLister
 
@@ -81,7 +81,7 @@ func New(
 		client:            client,
 		ianlewisorgClient: ianlewisorgClient,
 
-		pLister:  ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
+		pLister:  ianlewisorglisters.NewMemcachedClusterLister(proxyInformer.GetIndexer()),
 		dLister:  appsv1listers.NewDeploymentLister(deploymentInformer.GetIndexer()),
 		cmLister: corev1listers.NewConfigMapLister(configmapInformer.GetIndexer()),
 
@@ -136,14 +136,14 @@ func (c *Controller) enqueue(obj interface{}) {
 	c.queue.Add(key)
 }
 
-// enqueueOwned enqueues MemcachedProxy objects in the workqueue when one of
+// enqueueOwned enqueues MemcachedCluster objects in the workqueue when one of
 // one of its owned objects changes
 func (c *Controller) enqueueOwned(obj interface{}) {
 	if o, ok := obj.(metav1.Object); ok {
 		owner := metav1.GetControllerOf(o)
 		if owner != nil {
-			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
-				// Enqueue the MemcachedProxy that owns this object
+			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedCluster" {
+				// Enqueue the MemcachedCluster that owns this object
 				// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
 				// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
 				c.queue.Add(o.GetNamespace() + "/" + owner.Name)
@@ -222,7 +222,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the proxy with this namespace/name
-	p, err := c.pLister.MemcachedProxies(ns).Get(name)
+	p, err := c.pLister.MemcachedClusters(ns).Get(name)
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.
@@ -277,7 +277,7 @@ func (c *Controller) syncHandler(key string) error {
 }
 
 // deploymentForProxy creates a new deployment object for the given proxy. This method expects a new configmap to be available
-func (c *Controller) deploymentForProxy(p *v1alpha1.MemcachedProxy) (*appsv1.Deployment, error) {
+func (c *Controller) deploymentForProxy(p *v1alpha1.MemcachedCluster) (*appsv1.Deployment, error) {
 	cm, err := controller.GetConfigMapForProxy(c.cmLister, p)
 	if err != nil {
 		return nil, err
@@ -363,8 +363,8 @@ func (c *Controller) deploymentForProxy(p *v1alpha1.MemcachedProxy) (*appsv1.Dep
 	return d, nil
 }
 
-// createDeployment creates a mcrouter Deployment for the given MemcachedProxy
-func (c *Controller) createDeployment(p *v1alpha1.MemcachedProxy) error {
+// createDeployment creates a mcrouter Deployment for the given MemcachedCluster
+func (c *Controller) createDeployment(p *v1alpha1.MemcachedCluster) error {
 	d, err := c.deploymentForProxy(p)
 	if err != nil {
 		return err
@@ -384,7 +384,7 @@ func (c *Controller) createDeployment(p *v1alpha1.MemcachedProxy) error {
 }
 
 // updateDeployment updates the existing deployment to reflect the desired state
-func (c *Controller) updateDeployment(p *v1alpha1.MemcachedProxy, d *appsv1.Deployment) error {
+func (c *Controller) updateDeployment(p *v1alpha1.MemcachedCluster, d *appsv1.Deployment) error {
 	cm, err := controller.GetConfigMapForProxy(c.cmLister, p)
 	if err != nil {
 		return err
@@ -415,7 +415,7 @@ func (c *Controller) updateDeployment(p *v1alpha1.MemcachedProxy, d *appsv1.Depl
 }
 
 // deleteDeployments deletes all deployments in the given list
-func (c *Controller) deleteDeployments(p *v1alpha1.MemcachedProxy, dList []*appsv1.Deployment) error {
+func (c *Controller) deleteDeployments(p *v1alpha1.MemcachedCluster, dList []*appsv1.Deployment) error {
 	for _, d := range dList {
 		err := c.client.AppsV1().Deployments(d.Namespace).Delete(d.Name, nil)
 		if err != nil {

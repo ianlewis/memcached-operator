@@ -30,7 +30,7 @@ import (
 
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 	crdfake "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned/fake"
-	crdinformers "github.com/ianlewis/memcached-operator/internal/client/informers/externalversions/ianlewis/v1alpha1"
+	crdinformers "github.com/ianlewis/memcached-operator/internal/client/informers/externalversions/ianlewis.org/v1alpha1"
 )
 
 // ClientFixture holds fake clients and informers
@@ -39,12 +39,12 @@ type ClientFixture struct {
 	Client    *fake.Clientset
 	CRDClient *crdfake.Clientset
 
-	MemcachedProxyInformer cache.SharedIndexInformer
-	DeploymentInformer     cache.SharedIndexInformer
-	ReplicaSetInformer     cache.SharedIndexInformer
-	ConfigMapInformer      cache.SharedIndexInformer
-	ServiceInformer        cache.SharedIndexInformer
-	EndpointsInformer      cache.SharedIndexInformer
+	MemcachedClusterInformer cache.SharedIndexInformer
+	DeploymentInformer       cache.SharedIndexInformer
+	ReplicaSetInformer       cache.SharedIndexInformer
+	ConfigMapInformer        cache.SharedIndexInformer
+	ServiceInformer          cache.SharedIndexInformer
+	EndpointsInformer        cache.SharedIndexInformer
 
 	Informers informers.SharedInformers
 }
@@ -52,7 +52,7 @@ type ClientFixture struct {
 // NewClientFixture sets up fake clients and informers, and returns a fixture containing those objects
 func NewClientFixture(
 	t *testing.T,
-	proxies []*v1alpha1.MemcachedProxy,
+	proxies []*v1alpha1.MemcachedCluster,
 	deployments []*appsv1.Deployment,
 	replicasets []*appsv1.ReplicaSet,
 	configMaps []*corev1.ConfigMap,
@@ -85,11 +85,11 @@ func NewClientFixture(
 
 	informers := informers.NewSharedInformers()
 
-	// Create the MemcachedProxy Informer
+	// Create the MemcachedCluster Informer
 	proxyInformer := informers.InformerFor(
-		&v1alpha1.MemcachedProxy{},
+		&v1alpha1.MemcachedCluster{},
 		func() cache.SharedIndexInformer {
-			return crdinformers.NewMemcachedProxyInformer(
+			return crdinformers.NewMemcachedClusterInformer(
 				crdClient,
 				metav1.NamespaceAll,
 				0,
@@ -186,12 +186,12 @@ func NewClientFixture(
 		Client:    client,
 		CRDClient: crdClient,
 
-		MemcachedProxyInformer: proxyInformer,
-		DeploymentInformer:     deploymentInformer,
-		ReplicaSetInformer:     replicasetInformer,
-		ConfigMapInformer:      configMapInformer,
-		ServiceInformer:        serviceInformer,
-		EndpointsInformer:      endpointsInformer,
+		MemcachedClusterInformer: proxyInformer,
+		DeploymentInformer:       deploymentInformer,
+		ReplicaSetInformer:       replicasetInformer,
+		ConfigMapInformer:        configMapInformer,
+		ServiceInformer:          serviceInformer,
+		EndpointsInformer:        endpointsInformer,
 
 		Informers: informers,
 	}

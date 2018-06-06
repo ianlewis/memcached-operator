@@ -30,7 +30,7 @@ import (
 
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned"
-	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis/v1alpha1"
+	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis.org/v1alpha1"
 )
 
 var (
@@ -42,7 +42,7 @@ type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
-	pLister ianlewisorglisters.MemcachedProxyLister
+	pLister ianlewisorglisters.MemcachedClusterLister
 
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
@@ -73,7 +73,7 @@ func New(
 		client:            client,
 		ianlewisorgClient: ianlewisorgClient,
 
-		pLister: ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
+		pLister: ianlewisorglisters.NewMemcachedClusterLister(proxyInformer.GetIndexer()),
 
 		recorder: recorder,
 
@@ -173,7 +173,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the proxy with this namespace/name
-	p, err := c.pLister.MemcachedProxies(ns).Get(name)
+	p, err := c.pLister.MemcachedClusters(ns).Get(name)
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.
@@ -199,7 +199,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	c.l.Info.V(4).Printf("updating status for %q", key)
-	pCopy, err = c.ianlewisorgClient.IanlewisV1alpha1().MemcachedProxies(pCopy.Namespace).Update(pCopy)
+	pCopy, err = c.ianlewisorgClient.IanlewisV1alpha1().MemcachedClusters(pCopy.Namespace).Update(pCopy)
 	if err != nil {
 		return fmt.Errorf("failed to update %q: %v", key, err)
 	}
@@ -207,7 +207,7 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-func (c *Controller) updateStatus(p *v1alpha1.MemcachedProxy) error {
+func (c *Controller) updateStatus(p *v1alpha1.MemcachedCluster) error {
 	p.Status.ObservedGeneration = p.Generation
 	return nil
 }

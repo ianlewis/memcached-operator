@@ -25,8 +25,8 @@ type FakeIanlewisV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeIanlewisV1alpha1) MemcachedProxies(namespace string) v1alpha1.MemcachedProxyInterface {
-	return &FakeMemcachedProxies{c, namespace}
+func (c *FakeIanlewisV1alpha1) MemcachedClusters(namespace string) v1alpha1.MemcachedClusterInterface {
+	return &FakeMemcachedClusters{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

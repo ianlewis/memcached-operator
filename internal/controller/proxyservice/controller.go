@@ -34,7 +34,7 @@ import (
 
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 	ianlewisorgclientset "github.com/ianlewis/memcached-operator/internal/client/clientset/versioned"
-	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis/v1alpha1"
+	ianlewisorglisters "github.com/ianlewis/memcached-operator/internal/client/listers/ianlewis.org/v1alpha1"
 	"github.com/ianlewis/memcached-operator/internal/controller"
 )
 
@@ -42,12 +42,12 @@ var (
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
-// Controller represents a memcached proxy service controller which watches MemcachedProxy objects and creates associated Service objects.
+// Controller represents a memcached proxy service controller which watches MemcachedCluster objects and creates associated Service objects.
 type Controller struct {
 	client            clientset.Interface
 	ianlewisorgClient ianlewisorgclientset.Interface
 
-	pLister ianlewisorglisters.MemcachedProxyLister
+	pLister ianlewisorglisters.MemcachedClusterLister
 	sLister corev1listers.ServiceLister
 
 	// recorder is an event recorder for recording Event resources to the
@@ -79,7 +79,7 @@ func New(
 		client:            client,
 		ianlewisorgClient: ianlewisorgClient,
 
-		pLister: ianlewisorglisters.NewMemcachedProxyLister(proxyInformer.GetIndexer()),
+		pLister: ianlewisorglisters.NewMemcachedClusterLister(proxyInformer.GetIndexer()),
 		sLister: corev1listers.NewServiceLister(serviceInformer.GetIndexer()),
 
 		recorder: recorder,
@@ -112,7 +112,7 @@ func New(
 	return c
 }
 
-// enqueue enqueues MemcachedProxy objects in the workqueue when it changes
+// enqueue enqueues MemcachedCluster objects in the workqueue when it changes
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := KeyFunc(obj)
 	if err != nil {
@@ -122,14 +122,14 @@ func (c *Controller) enqueue(obj interface{}) {
 	c.queue.Add(key)
 }
 
-// enqueueOwned enqueues MemcachedProxy objects in the workqueue when one of
+// enqueueOwned enqueues MemcachedCluster objects in the workqueue when one of
 // one of its owned objects changes
 func (c *Controller) enqueueOwned(obj interface{}) {
 	if o, ok := obj.(metav1.Object); ok {
 		owner := metav1.GetControllerOf(o)
 		if owner != nil {
-			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedProxy" {
-				// Enqueue the MemcachedProxy that owns this object
+			if owner.APIVersion == v1alpha1.SchemeGroupVersion.String() && owner.Kind == "MemcachedCluster" {
+				// Enqueue the MemcachedCluster that owns this object
 				// KeyFunc only accepts metav1.Objects. OwnerReference doesn't implement metav1.Object so
 				// here we use the fact that KeyFunc creates keys of the form <namespace>/<name>
 				c.queue.Add(o.GetNamespace() + "/" + owner.Name)
@@ -197,7 +197,7 @@ func (c *Controller) processWorkItem(obj interface{}) error {
 
 // Updates a service if it has changed from the desired state
 // Returns true if the service has been updated
-func updateService(p *v1alpha1.MemcachedProxy, s *corev1.Service) bool {
+func updateService(p *v1alpha1.MemcachedCluster, s *corev1.Service) bool {
 	returnVal := false
 
 	// Only check individual fields on the service spec rather than
@@ -227,7 +227,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the proxy with this namespace/name
-	p, err := c.pLister.MemcachedProxies(ns).Get(name)
+	p, err := c.pLister.MemcachedClusters(ns).Get(name)
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.

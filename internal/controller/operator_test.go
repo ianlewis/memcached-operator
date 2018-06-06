@@ -60,13 +60,13 @@ func newConfigMapLister(cMaps ...*corev1.ConfigMap) corev1listers.ConfigMapListe
 
 // TestGetDeploymentsForProxy tests the GetDeploymentsForProxy function.
 func TestGetDeploymentsForProxy(t *testing.T) {
-	p := &v1alpha1.MemcachedProxy{
+	p := &v1alpha1.MemcachedCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "hoge",
 			Namespace: metav1.NamespaceDefault,
 			UID:       uuid.NewUUID(),
 		},
-		Spec: v1alpha1.MemcachedProxySpec{
+		Spec: v1alpha1.MemcachedClusterSpec{
 			Rules: v1alpha1.RuleSpec{
 				Service: &v1alpha1.ServiceSpec{
 					Name: "fuga",
@@ -147,13 +147,13 @@ func TestGetDeploymentsForProxy(t *testing.T) {
 
 // TestGetConfigMapsForProxy tests the GetConfigMapsForProxy function.
 func TestGetConfigMapsForProxy(t *testing.T) {
-	p := &v1alpha1.MemcachedProxy{
+	p := &v1alpha1.MemcachedCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "hoge",
 			Namespace: metav1.NamespaceDefault,
 			UID:       uuid.NewUUID(),
 		},
-		Spec: v1alpha1.MemcachedProxySpec{
+		Spec: v1alpha1.MemcachedClusterSpec{
 			Rules: v1alpha1.RuleSpec{
 				Service: &v1alpha1.ServiceSpec{
 					Name: "fuga",

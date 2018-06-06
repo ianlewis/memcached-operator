@@ -68,7 +68,7 @@ func NewMemcachedService(name string) (*corev1.Service, *corev1.Endpoints) {
 	return s, ep
 }
 
-func NewMemcachedProxyService(p *v1alpha1.MemcachedProxy) *corev1.Service {
+func NewMemcachedClusterService(p *v1alpha1.MemcachedProxy) *corev1.Service {
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: corev1.SchemeGroupVersion.String(),
@@ -79,7 +79,7 @@ func NewMemcachedProxyService(p *v1alpha1.MemcachedProxy) *corev1.Service {
 			Namespace:   metav1.NamespaceDefault,
 			Annotations: make(map[string]string),
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")),
+				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedCluster")),
 			},
 		},
 		Spec: corev1.ServiceSpec{

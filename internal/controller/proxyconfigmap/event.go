@@ -24,20 +24,20 @@ import (
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 )
 
-func (c *Controller) recordConfigMapEvent(verb string, p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap, err error) {
+func (c *Controller) recordConfigMapEvent(verb string, p *v1alpha1.MemcachedCluster, cm *corev1.ConfigMap, err error) {
 	c.recordEvent(verb, p, "ConfigMap", cm, err)
 }
 
-func (c *Controller) recordEvent(verb string, p *v1alpha1.MemcachedProxy, kind string, obj metav1.ObjectMetaAccessor, err error) {
+func (c *Controller) recordEvent(verb string, p *v1alpha1.MemcachedCluster, kind string, obj metav1.ObjectMetaAccessor, err error) {
 	if err == nil {
 		var msg string
 		reason := fmt.Sprintf("Successful%s", strings.Title(verb))
 		if obj == nil {
-			msg = fmt.Sprintf("%s %s for MemcachedProxy %q successful",
+			msg = fmt.Sprintf("%s %s for MemcachedCluster %q successful",
 				strings.ToLower(verb), kind, p.Name)
 		} else {
 			objName := obj.GetObjectMeta().GetName()
-			msg = fmt.Sprintf("%s %s %q for MemcachedProxy %q successful",
+			msg = fmt.Sprintf("%s %s %q for MemcachedCluster %q successful",
 				strings.ToLower(verb), kind, objName, p.Name)
 		}
 		c.recorder.Event(p, corev1.EventTypeNormal, reason, msg)
@@ -45,11 +45,11 @@ func (c *Controller) recordEvent(verb string, p *v1alpha1.MemcachedProxy, kind s
 		var msg string
 		reason := fmt.Sprintf("Failed%s", strings.Title(verb))
 		if obj == nil {
-			msg = fmt.Sprintf("%s %s for MemcachedProxy %q failed error: %s",
+			msg = fmt.Sprintf("%s %s for MemcachedCluster %q failed error: %s",
 				strings.ToLower(verb), kind, p.Name, err)
 		} else {
 			objName := obj.GetObjectMeta().GetName()
-			msg = fmt.Sprintf("%s %s %q for MemcachedProxy %q failed error: %s",
+			msg = fmt.Sprintf("%s %s %q for MemcachedCluster %q failed error: %s",
 				strings.ToLower(verb), kind, objName, p.Name, err)
 		}
 		c.recorder.Event(p, corev1.EventTypeWarning, reason, msg)

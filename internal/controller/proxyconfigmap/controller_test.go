@@ -53,7 +53,7 @@ func alwaysSynced() bool {
 
 func newFixture(
 	t *testing.T,
-	proxies []*v1alpha1.MemcachedProxy,
+	proxies []*v1alpha1.MemcachedCluster,
 	configMaps []*corev1.ConfigMap,
 	services []*corev1.Service,
 	endpoints []*corev1.Endpoints,
@@ -73,7 +73,7 @@ func newFixture(
 		cf.Client,
 		cf.CRDClient,
 		metav1.NamespaceAll,
-		cf.MemcachedProxyInformer,
+		cf.MemcachedClusterInformer,
 		cf.ConfigMapInformer,
 		cf.DeploymentInformer,
 		cf.ReplicaSetInformer,
@@ -109,7 +109,7 @@ func TestSync(t *testing.T) {
 
 		f := newFixture(
 			t,
-			[]*v1alpha1.MemcachedProxy{p},
+			[]*v1alpha1.MemcachedCluster{p},
 			nil,
 			[]*corev1.Service{s},
 			[]*corev1.Endpoints{ep},

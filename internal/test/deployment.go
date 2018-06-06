@@ -26,7 +26,7 @@ import (
 	"github.com/ianlewis/memcached-operator/internal/controller"
 )
 
-func NewMemcachedProxyDeployment(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) *appsv1.Deployment {
+func NewMemcachedClusterDeployment(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMap) *appsv1.Deployment {
 	replicas := int32(1)
 	d := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -38,7 +38,7 @@ func NewMemcachedProxyDeployment(p *v1alpha1.MemcachedProxy, cm *corev1.ConfigMa
 			Namespace:   p.Namespace,
 			Annotations: make(map[string]string),
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")),
+				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedCluster")),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{

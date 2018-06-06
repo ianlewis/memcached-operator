@@ -15,9 +15,9 @@
 package proxydeployment
 
 const (
-	DeploymentCreateReason       = "MemcachedProxyDeploymentCreated"
-	FailedDeploymentCreateReason = "MemcachedProxyDeploymentCreateError"
-	DeploymentUpdateReason       = "MemcachedProxyDeploymentUpdated"
-	FailedDeploymentUpdateReason = "MemcachedProxyDeploymentUpdateError"
-	DeleteDeploymentReason       = "MemcachedProxyDeploymentDelete"
+	DeploymentCreateReason       = "MemcachedClusterDeploymentCreated"
+	FailedDeploymentCreateReason = "MemcachedClusterDeploymentCreateError"
+	DeploymentUpdateReason       = "MemcachedClusterDeploymentUpdated"
+	FailedDeploymentUpdateReason = "MemcachedClusterDeploymentUpdateError"
+	DeleteDeploymentReason       = "MemcachedClusterDeploymentDelete"
 )

@@ -24,7 +24,7 @@ import (
 
 type IanlewisV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	MemcachedProxiesGetter
+	MemcachedClustersGetter
 }
 
 // IanlewisV1alpha1Client is used to interact with features provided by the ianlewis.org group.
@@ -32,8 +32,8 @@ type IanlewisV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *IanlewisV1alpha1Client) MemcachedProxies(namespace string) MemcachedProxyInterface {
-	return newMemcachedProxies(c, namespace)
+func (c *IanlewisV1alpha1Client) MemcachedClusters(namespace string) MemcachedClusterInterface {
+	return newMemcachedClusters(c, namespace)
 }
 
 // NewForConfig creates a new IanlewisV1alpha1Client for the given config.

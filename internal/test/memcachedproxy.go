@@ -22,8 +22,8 @@ import (
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 )
 
-func NewShardedProxy(name string, service string) *v1alpha1.MemcachedProxy {
-	return NewMemcachedProxy(name, v1alpha1.RuleSpec{
+func NewShardedProxy(name string, service string) *v1alpha1.MemcachedCluster {
+	return NewMemcachedCluster(name, v1alpha1.RuleSpec{
 		Type: v1alpha1.ShardedRuleType,
 		Service: &v1alpha1.ServiceSpec{
 			Name: service,
@@ -32,8 +32,8 @@ func NewShardedProxy(name string, service string) *v1alpha1.MemcachedProxy {
 	})
 }
 
-func NewReplicatedProxy(name string, service string) *v1alpha1.MemcachedProxy {
-	return NewMemcachedProxy(name, v1alpha1.RuleSpec{
+func NewReplicatedProxy(name string, service string) *v1alpha1.MemcachedCluster {
+	return NewMemcachedCluster(name, v1alpha1.RuleSpec{
 		Type: v1alpha1.ReplicatedRuleType,
 		Service: &v1alpha1.ServiceSpec{
 			Name: service,
@@ -42,8 +42,8 @@ func NewReplicatedProxy(name string, service string) *v1alpha1.MemcachedProxy {
 	})
 }
 
-func NewMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.MemcachedProxy {
-	p := &v1alpha1.MemcachedProxy{
+func NewMemcachedCluster(name string, rules v1alpha1.RuleSpec) *v1alpha1.MemcachedProxy {
+	p := &v1alpha1.MemcachedCluster{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.SchemeGroupVersion.String(),
 		},
@@ -54,7 +54,7 @@ func NewMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.Memcached
 			Annotations: make(map[string]string),
 			Generation:  1,
 		},
-		Spec: v1alpha1.MemcachedProxySpec{
+		Spec: v1alpha1.MemcachedClusterSpec{
 			Rules: rules,
 		},
 	}

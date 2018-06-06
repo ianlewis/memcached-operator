@@ -50,8 +50,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=ianlewis.org, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("memcachedproxies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ianlewis().V1alpha1().MemcachedProxies().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("memcachedclusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ianlewis().V1alpha1().MemcachedClusters().Informer()}, nil
 
 	}
 

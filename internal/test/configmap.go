@@ -25,7 +25,7 @@ import (
 	"github.com/ianlewis/memcached-operator/internal/apis/ianlewis.org/v1alpha1"
 )
 
-func NewProxyConfigMap(p *v1alpha1.MemcachedProxy) *corev1.ConfigMap {
+func NewProxyConfigMap(p *v1alpha1.MemcachedCluster) *corev1.ConfigMap {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 
@@ -39,7 +39,7 @@ func NewProxyConfigMap(p *v1alpha1.MemcachedProxy) *corev1.ConfigMap {
 			Name:      fmt.Sprintf("%s-config-%d", p.Name, r1.Intn(10000)),
 			Namespace: p.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedProxy")),
+				*metav1.NewControllerRef(p, v1alpha1.SchemeGroupVersion.WithKind("MemcachedCluster")),
 			},
 		},
 	}

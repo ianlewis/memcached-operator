@@ -28,59 +28,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// MemcachedProxyInformer provides access to a shared informer and lister for
-// MemcachedProxies.
-type MemcachedProxyInformer interface {
+// MemcachedClusterInformer provides access to a shared informer and lister for
+// MemcachedClusters.
+type MemcachedClusterInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.MemcachedProxyLister
+	Lister() v1alpha1.MemcachedClusterLister
 }
 
-type memcachedProxyInformer struct {
+type memcachedClusterInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewMemcachedProxyInformer constructs a new informer for MemcachedProxy type.
+// NewMemcachedClusterInformer constructs a new informer for MemcachedCluster type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewMemcachedProxyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredMemcachedProxyInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewMemcachedClusterInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredMemcachedClusterInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredMemcachedProxyInformer constructs a new informer for MemcachedProxy type.
+// NewFilteredMemcachedClusterInformer constructs a new informer for MemcachedCluster type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredMemcachedProxyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredMemcachedClusterInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.IanlewisV1alpha1().MemcachedProxies(namespace).List(options)
+				return client.IanlewisV1alpha1().MemcachedClusters(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.IanlewisV1alpha1().MemcachedProxies(namespace).Watch(options)
+				return client.IanlewisV1alpha1().MemcachedClusters(namespace).Watch(options)
 			},
 		},
-		&ianlewis_org_v1alpha1.MemcachedProxy{},
+		&ianlewis_org_v1alpha1.MemcachedCluster{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *memcachedProxyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredMemcachedProxyInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *memcachedClusterInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredMemcachedClusterInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *memcachedProxyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&ianlewis_org_v1alpha1.MemcachedProxy{}, f.defaultInformer)
+func (f *memcachedClusterInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&ianlewis_org_v1alpha1.MemcachedCluster{}, f.defaultInformer)
 }
 
-func (f *memcachedProxyInformer) Lister() v1alpha1.MemcachedProxyLister {
-	return v1alpha1.NewMemcachedProxyLister(f.Informer().GetIndexer())
+func (f *memcachedClusterInformer) Lister() v1alpha1.MemcachedClusterLister {
+	return v1alpha1.NewMemcachedClusterLister(f.Informer().GetIndexer())
 }

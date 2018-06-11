@@ -52,16 +52,15 @@ func NewMemcachedProxy(name string, rules v1alpha1.RuleSpec) *v1alpha1.Memcached
 			Name:        name,
 			Namespace:   metav1.NamespaceDefault,
 			Annotations: make(map[string]string),
+			Generation:  1,
 		},
 		Spec: v1alpha1.MemcachedProxySpec{
 			Rules: rules,
 		},
 	}
+	p.Status.ObservedGeneration = p.Generation
 
 	p.ApplyDefaults()
-
-	hash, _ := p.Spec.GetHash()
-	p.Status.ObservedSpecHash = hash
 
 	return p
 }

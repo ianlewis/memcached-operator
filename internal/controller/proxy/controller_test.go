@@ -100,8 +100,8 @@ func TestSync(t *testing.T) {
 
 		f.ExpectCRDClientActions([]test.ExpectedAction{
 			{
-				core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
-				func(t *testing.T, action core.Action) {
+				Action: core.NewUpdateAction(schema.GroupVersionResource{Resource: "memcachedproxies"}, p.Namespace, p),
+				F: func(t *testing.T, action core.Action) {
 					a := action.(core.UpdateAction)
 					pNew := a.GetObject().(*v1alpha1.MemcachedProxy)
 
@@ -109,7 +109,7 @@ func TestSync(t *testing.T) {
 					assert.Equal(t, pNew.Spec.Rules.Type, v1alpha1.ShardedRuleType, "rules type must be equal")
 
 					// Check that the observed hash was set
-					assert.NotEmpty(t, pNew.Status.ObservedSpecHash, "observed spec hash must be set")
+					assert.Equal(t, pNew.Status.ObservedGeneration, p.Generation, "observed spec hash must be set")
 				},
 			},
 		})

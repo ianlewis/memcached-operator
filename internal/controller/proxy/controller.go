@@ -208,10 +208,6 @@ func (c *Controller) syncHandler(key string) error {
 }
 
 func (c *Controller) updateStatus(p *v1alpha1.MemcachedProxy) error {
-	hash, err := p.Spec.GetHash()
-	if err != nil {
-		return fmt.Errorf("failed to hash spec for %q: %v", p.Namespace+"/"+p.Name, err)
-	}
-	p.Status.ObservedSpecHash = hash
+	p.Status.ObservedGeneration = p.Generation
 	return nil
 }

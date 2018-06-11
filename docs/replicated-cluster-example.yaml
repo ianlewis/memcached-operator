@@ -1,0 +1,56 @@
+# Copyright 2017 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: ianlewis.org/v1alpha1
+kind: MemcachedCluster
+metadata:
+  name: replicated-cluster-example
+spec:
+  cluster:
+    type: "replicated"
+    children:
+      - type: "sharded"
+        pool:
+          replicas: 3
+          template:
+            metadata:
+              labels:
+                pool: pool1
+                zone: asia-northeast-a
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: failure-domain.beta.kubernetes.io/zone 
+                      operator: In
+                      values:
+                        - asia-northeast1-a
+      - type: "sharded"
+        pool:
+          replicas: 3
+          template:
+            metadata:
+              labels:
+                pool: pool2
+                zone: asia-northeast-b
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: failure-domain.beta.kubernetes.io/zone 
+                      operator: In
+                      values:
+                      - asia-northeast1-b

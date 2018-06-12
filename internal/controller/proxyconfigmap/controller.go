@@ -292,13 +292,9 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Check if the current version has been observed by the proxy controller
-	hash, err := p.Spec.GetHash()
-	if err != nil {
-		return fmt.Errorf("failed to get hash for %q: %v", key, err)
-	}
-	if hash != p.Status.ObservedSpecHash {
+	if p.Generation != p.Status.ObservedGeneration {
 		// Requeue
-		c.l.Info.V(5).Printf("memcached proxy %q status not updated. requeueing", key)
+		c.l.Info.V(5).Printf("Waiting for proxy controller to update %q. requeueing...", key)
 		c.queue.AddRateLimited(key)
 		return nil
 	}

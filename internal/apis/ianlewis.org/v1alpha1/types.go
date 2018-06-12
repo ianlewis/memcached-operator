@@ -18,8 +18,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-
-	"github.com/ianlewis/memcached-operator/internal/util/hash"
 )
 
 const (
@@ -53,11 +51,6 @@ type MemcachedProxySpec struct {
 func (s *MemcachedProxySpec) ApplyDefaults(p *MemcachedProxy) {
 	s.McRouter.ApplyDefaults(p)
 	s.Rules.ApplyDefaults(p)
-}
-
-// GetHash gets a hash of the MemcachedProxySpec
-func (s *MemcachedProxySpec) GetHash() (string, error) {
-	return hash.GetHash(s)
 }
 
 type McRouterSpec struct {
@@ -125,14 +118,8 @@ func (s *ServiceSpec) ApplyDefaults(p *MemcachedProxy) {
 
 // MemcachedProxyStatus is the most recently observed status of the cluster
 type MemcachedProxyStatus struct {
-	// The generation observed by the MemcachedProxy controller. Not used currently as generation is not updated for CRDs.
-	// Proper support for CRDs is being worked on.
-	// See: https://github.com/kubernetes/community/pull/913
-	// TODO: implement ObservedGeneration
-	// ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-	// This is a workaround for the fact that Generation and sub-resources are not fully supported for CRDs yet.
-	// We assume that end users will not update the status object and especially this field.
-	ObservedSpecHash string `json:"observedSpecHash,omitempty"`
+	// The generation observed by the MemcachedProxy controller.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// TODO: updated replicas in status?
 	// Replicas int32 `json:"replicas,omitempty"`
 

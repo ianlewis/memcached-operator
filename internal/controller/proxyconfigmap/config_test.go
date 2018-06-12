@@ -168,6 +168,7 @@ func TestPoolForService(t *testing.T) {
 				Name:        "hoge",
 				Namespace:   metav1.NamespaceDefault,
 				Annotations: make(map[string]string),
+				Generation:  1,
 			},
 			Spec: v1alpha1.MemcachedProxySpec{
 				Rules: v1alpha1.RuleSpec{
@@ -179,11 +180,9 @@ func TestPoolForService(t *testing.T) {
 				},
 			},
 		}
+		p.Status.ObservedGeneration = p.Generation
 
 		p.ApplyDefaults()
-
-		hash, _ := p.Spec.GetHash()
-		p.Status.ObservedSpecHash = hash
 
 		// Create the service "fuga". This service has two ports.
 		// Port 1000 maps to 11211 on target pods.

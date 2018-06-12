@@ -20,9 +20,9 @@ memcached-operator is still under active development and has not been extensivel
 
 ## Prerequisites
 
-* Version >= 1.8 of Kubernetes.
+* Version >= 1.10 of Kubernetes.
 
-memcached-operator relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for custom resources which is in Kubernetes 1.8+
+memcached-operator relies on [subresources for CRDs](https://github.com/kubernetes/kubernetes/pull/55168) which is in 1.10+
 
 ## Quickstart
 

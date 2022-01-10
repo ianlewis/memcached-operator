@@ -45,7 +45,7 @@ Routing rules form an arbitrary tree where the root nodes are rules that referen
   * "sharded" indicates that requests are sharded among member pods in the referenced service, or among each child routing rule. See the [sharded pools documentation](sharded-pools.md) for more details.
   * "replicated" indicates that write requests are replicated to each member pod in the referenced service, or to each child routing rule. Get requests are routed to a random pod or child route based on host ID of the mcrouter instance. See the [replicated pools documentation](replicated-pools.md) for more details.
 * `service` indicates that requests to this route should be routed to member pods of the service.
-* `children` indicates that requests to this route should be routed tothe given child routes.
+* `children` indicates that requests to this route should be routed to the given child routes.
 
 Here is the definition for the routing rule in Go:
 
